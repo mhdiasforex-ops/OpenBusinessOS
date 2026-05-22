@@ -38,3 +38,6 @@ data/
 *.log
 *.tmp
 spec-kit/
+
+# Turborepo
+.turbo/

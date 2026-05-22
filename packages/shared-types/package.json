@@ -1,0 +1,8 @@
+{
+  "name": "@openbusinessos/shared-types",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": { "build": "tsc", "lint": "eslint src/", "test": "vitest run" },
+  "devDependencies": { "typescript": "^5.7.0", "vitest": "^2.1.0" }
+}
