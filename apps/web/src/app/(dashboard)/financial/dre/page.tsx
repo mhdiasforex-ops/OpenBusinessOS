@@ -4,147 +4,585 @@ export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@openbusinessos/utils';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+
+// ── Types ──────────────────────────────────────────────────────────
+
+interface OperatingExpense {
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+interface DREResult {
+  period: string;
+  grossRevenue: number;
+  cogs: number;
+  netRevenue: number;
+  grossMargin: number;
+  operatingExpenses: OperatingExpense[];
+  operatingTotal: number;
+  ebitda: number;
+  netIncome: number;
+  netMargin: number;
+}
+
+// ── Constants ──────────────────────────────────────────────────────
+
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+const MESES_CURTOS = [
+  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+];
+
+const ANOS = [2023, 2024, 2025, 2026, 2027];
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function calcDelta(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function DeltaBadge({ delta }: { delta: number | null }) {
+  if (delta === null) return <span className="text-xs text-muted-foreground">—</span>;
+  const isPositive = delta >= 0;
+  const arrow = isPositive ? '▲' : '▼';
+  const color = isPositive ? 'text-emerald-600' : 'text-red-600';
+  return (
+    <span className={`text-xs font-medium ${color}`}>
+      {arrow} {Math.abs(delta).toFixed(1)}%
+    </span>
+  );
+}
+
+function pctOverRevenue(value: number, revenue: number): string {
+  if (!revenue) return '—';
+  return ((value / revenue) * 100).toFixed(1) + '%';
+}
+
+// ── CSV Export ──────────────────────────────────────────────────────
+
+function exportToCSV(dre: DREResult) {
+  const rows: string[][] = [];
+  rows.push(['DRE — Demonstrativo de Resultado do Exercício']);
+  rows.push(['Período', dre.period]);
+  rows.push([]);
+  rows.push(['Descrição', 'Valor (R$)', '% Receita Bruta']);
+
+  rows.push(['Receita Bruta', dre.grossRevenue.toFixed(2), '100.0%']);
+  rows.push(['(-) CMV', (-dre.cogs).toFixed(2), pctOverRevenue(-dre.cogs, dre.grossRevenue)]);
+  rows.push(['(=) Receita Líquida', dre.netRevenue.toFixed(2), pctOverRevenue(dre.netRevenue, dre.grossRevenue)]);
+  rows.push([]);
+
+  rows.push(['(-) Despesas Operacionais', (-dre.operatingTotal).toFixed(2), pctOverRevenue(-dre.operatingTotal, dre.grossRevenue)]);
+  for (const exp of dre.operatingExpenses) {
+    rows.push([`    ${exp.name}`, (-exp.value).toFixed(2), `${exp.percentage.toFixed(1)}%`]);
+  }
+  rows.push([]);
+
+  rows.push(['(=) EBITDA', dre.ebitda.toFixed(2), pctOverRevenue(dre.ebitda, dre.grossRevenue)]);
+  rows.push(['(=) Lucro Líquido', dre.netIncome.toFixed(2), pctOverRevenue(dre.netIncome, dre.grossRevenue)]);
+  rows.push([]);
+  rows.push(['Margem Bruta', `${dre.grossMargin.toFixed(1)}%`]);
+  rows.push(['Margem Líquida', `${dre.netMargin.toFixed(1)}%`]);
+
+  const csvContent = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `dre_${dre.period.replace('/', '-')}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Page Component ─────────────────────────────────────────────────
 
 export default function DREPage() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
-  const { data: dre, isLoading } = useQuery({
+  // ── Period navigation ──────────────────────────────────────────
+
+  const goToPrevMonth = useCallback(() => {
+    setMonth((m) => {
+      const newMonth = m === 1 ? 12 : m - 1;
+      if (m === 1) setYear((y) => y - 1);
+      return newMonth;
+    });
+  }, []);
+
+  const goToNextMonth = useCallback(() => {
+    setMonth((m) => {
+      const newMonth = m === 12 ? 1 : m + 1;
+      if (m === 12) setYear((y) => y + 1);
+      return newMonth;
+    });
+  }, []);
+
+  // ── Queries ────────────────────────────────────────────────────
+
+  const { data: dre, isLoading: dreLoading } = useQuery<DREResult>({
     queryKey: ['dre', month, year],
-    queryFn: () => api.get('/financial/dre', { month, year }).then((r: any) => r.data || r),
+    queryFn: () => api.get('/financial/dre', { month, year }),
   });
 
-  const d = dre as any;
-  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const { data: comparison } = useQuery<DREResult[]>({
+    queryKey: ['dre-comparison', 3],
+    queryFn: () => api.get('/financial/dre/comparison', { months: 3 }),
+  });
+
+  // ── Previous month data ────────────────────────────────────────
+
+  const prevMonthData = useMemo<DREResult | null>(() => {
+    if (!comparison || !Array.isArray(comparison) || comparison.length < 2) return null;
+    // Find the entry that matches the previous period
+    const currentPeriod = `${String(month).padStart(2, '0')}/${year}`;
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    const prevPeriod = `${String(prevMonth).padStart(2, '0')}/${prevYear}`;
+    return comparison.find((c) => c.period === prevPeriod) ?? null;
+  }, [comparison, month, year]);
+
+  // ── Delta calculations ─────────────────────────────────────────
+
+  const deltas = useMemo(() => {
+    if (!dre || !prevMonthData) return null;
+    return {
+      grossRevenue: calcDelta(dre.grossRevenue, prevMonthData.grossRevenue),
+      cogs: calcDelta(dre.cogs, prevMonthData.cogs),
+      netRevenue: calcDelta(dre.netRevenue, prevMonthData.netRevenue),
+      grossMargin: calcDelta(dre.grossMargin, prevMonthData.grossMargin),
+      operatingTotal: calcDelta(dre.operatingTotal, prevMonthData.operatingTotal),
+      ebitda: calcDelta(dre.ebitda, prevMonthData.ebitda),
+      netIncome: calcDelta(dre.netIncome, prevMonthData.netIncome),
+      netMargin: calcDelta(dre.netMargin, prevMonthData.netMargin),
+    };
+  }, [dre, prevMonthData]);
+
+  // ── Month/Year options ─────────────────────────────────────────
+
+  const monthOptions = MESES_CURTOS.map((m, i) => ({
+    value: String(i + 1),
+    label: m,
+  }));
+
+  const yearOptions = ANOS.map((y) => ({
+    value: String(y),
+    label: String(y),
+  }));
+
+  const periodLabel = `${MESES[month - 1]} ${year}`;
+
+  // ── Render ─────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">DRE — Demonstrativo de Resultados</h1>
         <div className="flex items-center gap-2">
-          <select
-            className="border rounded px-3 py-1 text-sm bg-card"
-            value={month}
+          <Button variant="outline" size="sm" onClick={goToPrevMonth}>
+            ◀ Anterior
+          </Button>
+          <Select
+            className="w-[100px]"
+            options={monthOptions}
+            value={String(month)}
             onChange={(e) => setMonth(Number(e.target.value))}
-          >
-            {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-          <select
-            className="border rounded px-3 py-1 text-sm bg-card"
-            value={year}
+          />
+          <Select
+            className="w-[90px]"
+            options={yearOptions}
+            value={String(year)}
             onChange={(e) => setYear(Number(e.target.value))}
-          >
-            {[2024, 2025, 2026].map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          />
+          <Button variant="outline" size="sm" onClick={goToNextMonth}>
+            Próximo ▶
+          </Button>
+          {dre && (
+            <Button variant="outline" size="sm" onClick={() => exportToCSV(dre)}>
+              📥 Exportar CSV
+            </Button>
+          )}
         </div>
       </div>
 
-      {isLoading ? (
-        <p>Carregando DRE...</p>
-      ) : d ? (
-        <div className="space-y-4">
-          {/* Summary */}
-          <Card>
-            <CardHeader><CardTitle>Resumo — {d.period}</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Receita Bruta</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(d.grossRevenue)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">CMV / Custo</p>
-                  <p className="text-2xl font-bold text-red-600">{formatCurrency(d.cogs)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Receita Líquida</p>
-                  <p className="text-2xl font-bold">{formatCurrency(d.netRevenue)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-                  <p className={`text-2xl font-bold ${d.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(d.netIncome)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Margins */}
-          <Card>
-            <CardHeader><CardTitle>Margens</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Margem Bruta</span>
-                  <span className="font-medium">{d.grossMargin?.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-3">
-                  <div className="bg-green-500 h-3 rounded-full" style={{ width: `${Math.min(100, Math.max(0, d.grossMargin))}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Margem Líquida</span>
-                  <span className="font-medium">{d.netMargin?.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-3">
-                  <div className="bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(100, Math.max(0, d.netMargin))}%` }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Operating Expenses Detail */}
-          <Card>
-            <CardHeader><CardTitle>Despesas Operacionais</CardTitle></CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-3">Categoria</th>
-                    <th className="text-right py-2 px-3">Valor</th>
-                    <th className="text-right py-2 px-3">% das Despesas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.operatingExpenses?.map((exp: any) => (
-                    <tr key={exp.name} className="border-b hover:bg-muted/50">
-                      <td className="py-2 px-3">{exp.name}</td>
-                      <td className="py-2 px-3 text-right">{formatCurrency(exp.value)}</td>
-                      <td className="py-2 px-3 text-right">{exp.percentage?.toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="font-bold">
-                    <td className="py-2 px-3">Total</td>
-                    <td className="py-2 px-3 text-right">{formatCurrency(d.operatingTotal)}</td>
-                    <td className="py-2 px-3 text-right">100%</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </CardContent>
-          </Card>
-
-          {/* EBITDA */}
-          <Card>
-            <CardHeader><CardTitle>EBITDA</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(d.ebitda)}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                EBITDA = Receita Líquida - Despesas Operacionais
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* ── Loading state ───────────────────────────────────────── */}
+      {dreLoading ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Carregando DRE...
+          </CardContent>
+        </Card>
+      ) : !dre ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Nenhum dado disponível para o período selecionado.
+          </CardContent>
+        </Card>
       ) : (
-        <p className="text-muted-foreground">Nenhum dado disponível para o período selecionado</p>
+        <>
+          {/* ── KPI Cards ──────────────────────────────────────── */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Receita Bruta
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(dre.grossRevenue)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.grossRevenue} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  CMV
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(dre.cogs)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.cogs} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Receita Líquida
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(dre.netRevenue)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.netRevenue} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Margem Bruta
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {dre.grossMargin.toFixed(1)}%
+                </p>
+                {deltas && <DeltaBadge delta={deltas.grossMargin} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Despesas Operacionais
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(dre.operatingTotal)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.operatingTotal} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  EBITDA
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-2xl font-bold ${dre.ebitda >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  {formatCurrency(dre.ebitda)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.ebitda} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Lucro Líquido
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-2xl font-bold ${dre.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(dre.netIncome)}
+                </p>
+                {deltas && <DeltaBadge delta={deltas.netIncome} />}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Margem Líquida
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-2xl font-bold ${dre.netMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {dre.netMargin.toFixed(1)}%
+                </p>
+                {deltas && <DeltaBadge delta={deltas.netMargin} />}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Tabs: Tabela / Comparativo ─────────────────────── */}
+          <Tabs defaultValue="tabela">
+            <TabsList>
+              <TabsTrigger value="tabela">Tabela DRE</TabsTrigger>
+              <TabsTrigger value="comparativo">Comparativo Mensal</TabsTrigger>
+            </TabsList>
+
+            {/* ── Tab: DRE Table ──────────────────────────────── */}
+            <TabsContent value="tabela">
+              <Card>
+                <CardHeader>
+                  <CardTitle>DRE — {periodLabel}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50%]">Descrição</TableHead>
+                        <TableHead className="text-right">Valor (R$)</TableHead>
+                        <TableHead className="text-right">% Receita Bruta</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* Receita Bruta */}
+                      <TableRow className="bg-muted/30 font-semibold">
+                        <TableCell>Receita Bruta</TableCell>
+                        <TableCell className="text-right text-green-700">
+                          {formatCurrency(dre.grossRevenue)}
+                        </TableCell>
+                        <TableCell className="text-right">100,0%</TableCell>
+                      </TableRow>
+
+                      {/* CMV */}
+                      <TableRow>
+                        <TableCell className="pl-8 text-red-700">(-) CMV</TableCell>
+                        <TableCell className="text-right text-red-700">
+                          {formatCurrency(-dre.cogs)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pctOverRevenue(-dre.cogs, dre.grossRevenue)}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Receita Líquida */}
+                      <TableRow className="bg-muted/30 font-semibold border-t-2 border-t-foreground/10">
+                        <TableCell>(=) Receita Líquida</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(dre.netRevenue)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pctOverRevenue(dre.netRevenue, dre.grossRevenue)}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Despesas Operacionais — header */}
+                      <TableRow className="font-semibold">
+                        <TableCell className="text-red-700">(-) Despesas Operacionais</TableCell>
+                        <TableCell className="text-right text-red-700">
+                          {formatCurrency(-dre.operatingTotal)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pctOverRevenue(-dre.operatingTotal, dre.grossRevenue)}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Despesas Operacionais — items */}
+                      {dre.operatingExpenses?.map((exp) => (
+                        <TableRow key={exp.name}>
+                          <TableCell className="pl-12 text-muted-foreground">
+                            {exp.name}
+                            <Badge variant="secondary" className="ml-2 text-[10px]">
+                              {exp.percentage.toFixed(1)}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-red-600">
+                            {formatCurrency(-exp.value)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {pctOverRevenue(-exp.value, dre.grossRevenue)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {/* EBITDA */}
+                      <TableRow className="bg-muted/30 font-semibold border-t-2 border-t-foreground/10">
+                        <TableCell>(=) EBITDA</TableCell>
+                        <TableCell className={`text-right ${dre.ebitda >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                          {formatCurrency(dre.ebitda)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pctOverRevenue(dre.ebitda, dre.grossRevenue)}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Lucro Líquido */}
+                      <TableRow className="bg-muted/30 font-semibold border-t-2 border-t-foreground/10">
+                        <TableCell>(=) Lucro Líquido</TableCell>
+                        <TableCell className={`text-right ${dre.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {formatCurrency(dre.netIncome)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pctOverRevenue(dre.netIncome, dre.grossRevenue)}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Margem Bruta */}
+                      <TableRow className="border-t-2 border-t-foreground/10">
+                        <TableCell className="text-muted-foreground">Margem Bruta</TableCell>
+                        <TableCell className="text-right font-medium text-emerald-700">
+                          {dre.grossMargin.toFixed(1)}%
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+
+                      {/* Margem Líquida */}
+                      <TableRow>
+                        <TableCell className="text-muted-foreground">Margem Líquida</TableCell>
+                        <TableCell className={`text-right font-medium ${dre.netMargin >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {dre.netMargin.toFixed(1)}%
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── Tab: Monthly Comparison ─────────────────────── */}
+            <TabsContent value="comparativo">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comparativo Mensal</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!comparison || !Array.isArray(comparison) || comparison.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">
+                      Nenhum dado comparativo disponível.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[40%]">Indicador</TableHead>
+                          {comparison.map((c) => (
+                            <TableHead key={c.period} className="text-right">
+                              {c.period}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow className="font-semibold">
+                          <TableCell>Receita Bruta</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right text-green-700">
+                              {formatCurrency(c.grossRevenue)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="pl-8 text-red-700">(-) CMV</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right text-red-700">
+                              {formatCurrency(-c.cogs)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow className="bg-muted/30 font-semibold">
+                          <TableCell>(=) Receita Líquida</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right">
+                              {formatCurrency(c.netRevenue)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="text-red-700">(-) Despesas Operacionais</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right text-red-700">
+                              {formatCurrency(-c.operatingTotal)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow className="bg-muted/30 font-semibold">
+                          <TableCell>(=) EBITDA</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right">
+                              {formatCurrency(c.ebitda)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow className="bg-muted/30 font-semibold border-t-2 border-t-foreground/10">
+                          <TableCell>(=) Lucro Líquido</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right">
+                              {formatCurrency(c.netIncome)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="text-muted-foreground">Margem Bruta</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right text-emerald-700">
+                              {c.grossMargin.toFixed(1)}%
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="text-muted-foreground">Margem Líquida</TableCell>
+                          {comparison.map((c) => (
+                            <TableCell key={c.period} className="text-right">
+                              {c.netMargin.toFixed(1)}%
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
       )}
     </div>
   );

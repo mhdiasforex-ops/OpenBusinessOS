@@ -2,73 +2,45 @@
 // OpenBusinessOS — Shared Types
 // ============================================================
 
-// --- Enums ---
+// Re-export all enums from the dedicated module
+export {
+  Niche,
+  SubNiche,
+  TransactionType,
+  TransactionStatus,
+  PaymentMethod,
+  WorkflowStepType,
+  WorkflowStatus,
+  WorkflowExecutionStatus,
+  WorkflowStepStatus,
+  EventSeverity,
+  EventStatus,
+  UserRole,
+  PermissionAction,
+  PermissionResource,
+  CustomerStatus,
+  CustomerSegment,
+  ProductStatus,
+  DashboardType,
+  OnboardingStatus,
+} from './enums';
 
-export enum Niche {
-  RETAIL = 'RETAIL',
-  ECOMMERCE = 'ECOMMERCE',
-  SERVICES = 'SERVICES',
-  FOOD = 'FOOD',
-  PROFESSIONAL = 'PROFESSIONAL',
-  CONSTRUCTION = 'CONSTRUCTION',
-  HEALTH = 'HEALTH',
-  EDUCATION = 'EDUCATION',
-  OTHER = 'OTHER',
-}
+import type {
+  Niche,
+  SubNiche,
+  TransactionType,
+  TransactionStatus,
+  PaymentMethod,
+  WorkflowStepType,
+  EventStatus,
+  CustomerSegment,
+} from './enums';
 
 export enum Plan {
   FREE = 'FREE',
   STARTER = 'STARTER',
   PRO = 'PRO',
   ENTERPRISE = 'ENTERPRISE',
-}
-
-export enum TransactionType {
-  INCOME = 'INCOME',
-  EXPENSE = 'EXPENSE',
-  TRANSFER = 'TRANSFER',
-}
-
-export enum TransactionStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  OVERDUE = 'OVERDUE',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum PaymentMethod {
-  PIX = 'PIX',
-  CREDIT_CARD = 'CREDIT_CARD',
-  DEBIT_CARD = 'DEBIT_CARD',
-  BANK_TRANSFER = 'BANK_TRANSFER',
-  BANK_SLIP = 'BANK_SLIP',
-  CASH = 'CASH',
-  OTHER = 'OTHER',
-}
-
-export enum WorkflowStepType {
-  SEND_EMAIL = 'SEND_EMAIL',
-  SEND_WHATSAPP = 'SEND_WHATSAPP',
-  CREATE_TASK = 'CREATE_TASK',
-  UPDATE_STATUS = 'UPDATE_STATUS',
-  WEBHOOK = 'WEBHOOK',
-  AI_ACTION = 'AI_ACTION',
-  DELAY = 'DELAY',
-  CONDITION = 'CONDITION',
-}
-
-export enum EventStatus {
-  PENDING = 'PENDING',
-  PROCESSED = 'PROCESSED',
-  FAILED = 'FAILED',
-}
-
-export enum CustomerSegment {
-  VIP = 'VIP',
-  REGULAR = 'REGULAR',
-  NEW = 'NEW',
-  AT_RISK = 'AT_RISK',
-  CHURNED = 'CHURNED',
 }
 
 // --- Base Entity ---
@@ -85,6 +57,7 @@ export interface Organization extends BaseEntity {
   name: string;
   slug: string;
   niche: Niche;
+  subniche?: SubNiche;
   settings: Record<string, any>;
   isActive: boolean;
   plan: Plan;

@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import { LayoutDashboard, DollarSign, Users, Package, Zap, BarChart3, Settings, Rocket, FileText, Landmark, Megaphone, LogOut } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Users, Package, Zap, BarChart3, Settings, Rocket, FileText, Landmark, Megaphone, LogOut, Shield, Bot, MessageSquare, ShoppingCart, Calendar, UserCheck, FileSignature, Truck, LayoutTemplate, CreditCard, ShieldCheck, MessageCircle } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
- LayoutDashboard, DollarSign, Users, Package, Zap, BarChart3, Settings, Rocket, FileText, Landmark, Megaphone,
+ LayoutDashboard, DollarSign, Users, Package, Zap, BarChart3, Settings, Rocket, FileText, Landmark, Megaphone, Shield, Bot, MessageSquare, ShoppingCart, Calendar, UserCheck, FileSignature, Truck, LayoutTemplate, CreditCard, ShieldCheck, MessageCircle,
 };
 
 interface NavItem {

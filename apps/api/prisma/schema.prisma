@@ -16,13 +16,97 @@ datasource db {
 enum Niche {
   RETAIL
   ECOMMERCE
-  SERVICES
-  FOOD
-  PROFESSIONAL
-  CONSTRUCTION
-  HEALTH
+  FOOD_SERVICE
+  PROFESSIONAL_SERVICES
+  HEALTH_CARE
   EDUCATION
+  CONSTRUCTION
+  BEAUTY
+  FITNESS
+  LEGAL
+  ACCOUNTING
+  TECH_SERVICES
+  REAL_ESTATE
+  AUTOMOTIVE
+  AGRICULTURE
   OTHER
+}
+
+enum SubNiche {
+  // RETAIL
+  RETAIL_CLOTHING
+  RETAIL_GROCERY
+  RETAIL_ELECTRONICS
+  RETAIL_FURNITURE
+  RETAIL_PHARMACY
+  RETAIL_GENERAL
+  // ECOMMERCE
+  ECOM_DIGITAL_PRODUCTS
+  ECOM_MARKETPLACE_SELLER
+  ECOM_D2C_BRAND
+  ECOM_DROP
+  ECOM_SUBSCRIPTION
+  // FOOD_SERVICE
+  FOOD_RESTAURANT
+  FOOD_CAFE
+  FOOD_BAKERY
+  FOOD_BAR_PUB
+  FOOD_DELIVERY_CLOUD
+  FOOD_CATERING
+  // PROFESSIONAL_SERVICES
+  PROF_CONSULTING
+  PROF_MARKETING_AGENCY
+  PROF_DESIGN_STUDIO
+  PROF_FREELANCER
+  // HEALTH_CARE
+  HEALTH_CLINIC
+  HEALTH_DENTISTRY
+  HEALTH_PHYSIOTHERAPY
+  HEALTH_PSYCHOLOGY
+  HEALTH_NUTRITION
+  // EDUCATION
+  EDU_SCHOOL
+  EDU_COURSE_PLATFORM
+  EDU_TUTORING
+  EDU_LANGUAGE_SCHOOL
+  // CONSTRUCTION
+  CONST_GENERAL
+  CONST_RENOVATION
+  CONST_SPECIALIZED
+  CONST_MATERIALS
+  // BEAUTY
+  BEAUTY_SALON
+  BEAUTY_BARBERSHOP
+  BEAUTY_NAIL_STUDIO
+  BEAUTY_AESTHETIC
+  // FITNESS
+  FIT_GYM
+  FIT_STUDIO
+  FIT_PERSONAL_TRAINER
+  // LEGAL
+  LEGAL_LAW_FIRM
+  LEGAL_SOLO_PRACTITIONER
+  // ACCOUNTING
+  ACCT_FIRM
+  ACCT_SOLO
+  // TECH_SERVICES
+  TECH_AGENCY
+  TECH_SaaS
+  TECH_MAINTENANCE
+  // REAL_ESTATE
+  RE_BROKERAGE
+  RE_PROPERTY_MGMT
+  RE_DEVELOPMENT
+  // AUTOMOTIVE
+  AUTO_REPAIR
+  AUTO_DEALERSHIP
+  AUTO_PARTS
+  // AGRICULTURE
+  AGRI_FARM
+  AGRI_AGRIBUSINESS
+  AGRI_COOPERATIVE
+  // OTHER
+  OTHER_GENERAL
 }
 
 enum Plan {
@@ -80,14 +164,141 @@ enum CustomerSegment {
   CHURNED
 }
 
+enum CmsPageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum CmsBlockType {
+  HERO
+  FEATURE
+  STAT
+  TESTIMONIAL
+  FAQ
+  CTA
+  PRICING
+  COMPARISON
+  GALLERY
+}
+
+enum TemplateType {
+  ONBOARDING
+  WORKFLOW
+  DASHBOARD
+  EMAIL
+  REPORT
+  INVOICE
+  PRODUCT_CATALOG
+  NICHE_SPECIFIC
+}
+
+enum ContractType {
+  SERVICE
+  SUPPLY
+  RENT
+  EMPLOYMENT
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+  ON_LEAVE
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSING
+  PAID
+  ERROR
+}
+
+enum LeaveType {
+  VACATION
+  SICK
+  PERSONAL
+  MATERNITY
+  PATERNITY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  CONFIRMED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentProviderName {
+  ASAAS
+  MERCADO_PAGO
+  PAGSEGURO
+  STONE
+  PAGHIPER
+  CIELO
+  IUGU
+  ZOOP
+  MANUAL
+}
+
+enum ComplianceCouncil {
+  CRM
+  CFO
+  OAB
+  CREA
+  CAU
+  CRC
+  CRECI
+}
+
+enum ComplianceRecordStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum WhatsAppProviderName {
+  META_CLOUD_API
+  EVOLUTION_API
+  TWILIO
+  ZENVIA
+  WATI
+}
+
+enum WhatsAppTemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISABLED
+}
+
 // --- Organization ---
 
 model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
-  niche     Niche    @default(OTHER)
-  settings  Json     @default("{}")
+ niche Niche @default(OTHER)
+ subniche SubNiche?
+ settings Json @default("{}")
   isActive  Boolean  @default(true)
   plan      Plan     @default(FREE)
   createdAt DateTime @default(now())
@@ -102,7 +313,28 @@ model Organization {
  workflows Workflow[]
  workflowSteps WorkflowStep[]
  events Event[]
- dashboards Dashboard[]
+  dashboards Dashboard[]
+  cmsPages CmsPage[]
+  cmsBlocks CmsBlock[]
+  cmsMedia CmsMedia[]
+  templates Template[]
+  stockMovements StockMovement[]
+  suppliers Supplier[]
+  purchaseOrders PurchaseOrder[]
+  orders Order[]
+  appointments Appointment[]
+  reports Report[]
+  contracts Contract[]
+  employees Employee[]
+  timeEntries TimeEntry[]
+  payrolls Payroll[]
+  leaveRequests LeaveRequest[]
+  payments Payment[]
+  paymentConfigs PaymentConfig[]
+  complianceRecords ComplianceRecord[]
+  whatsappConfigs WhatsAppConfig[]
+  whatsappTemplates WhatsAppTemplate[]
+  whatsappMessages WhatsAppMessage[]
 
   @@index([slug])
   @@index([isActive])
@@ -125,7 +357,9 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  roles        UserRole[]
+  roles UserRole[]
+  employees Employee[]
+  approvedLeaves LeaveRequest[]
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -197,6 +431,7 @@ model Product {
 
   organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactionItems TransactionItem[]
+  stockMovements StockMovement[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -223,10 +458,15 @@ model Customer {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ transactions Transaction[]
+ orders Order[]
+ appointments Appointment[]
+ contracts Contract[]
+ payments Payment[]
+ whatsappMessages WhatsAppMessage[]
 
-  @@unique([organizationId, email])
+ @@unique([organizationId, email])
   @@index([organizationId])
   @@index([organizationId, segment])
   @@map("customers")
@@ -366,4 +606,625 @@ model Dashboard {
   @@index([organizationId])
   @@index([organizationId, isDefault])
   @@map("dashboards")
+}
+
+// --- CMS Page ---
+
+model CmsPage {
+  id             String        @id @default(cuid())
+  organizationId String
+  slug           String        @unique
+  title          String
+  niche          Niche?
+  content        Json          @default("{}")
+  meta           Json          @default("{}")
+  status         CmsPageStatus @default(DRAFT)
+  publishedAt    DateTime?     @map("published_at")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([niche])
+  @@index([status])
+  @@map("cms_pages")
+}
+
+// --- CMS Block ---
+
+model CmsBlock {
+  id             String       @id @default(cuid())
+  organizationId String
+  key            String
+  niche          Niche?
+  type           CmsBlockType
+  content        Json         @default("{}")
+  order          Int          @default(0)
+  status         CmsPageStatus @default(DRAFT)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@index([niche])
+  @@index([type])
+  @@map("cms_blocks")
+}
+
+// --- CMS Media ---
+
+model CmsMedia {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  alt            String   @default("")
+  type           String   @default("image")
+  size           Int      @default(0)
+  niche          Niche?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([niche])
+  @@map("cms_media")
+}
+
+// --- Template ---
+
+model Template {
+  id             String       @id @default(cuid())
+  organizationId String
+  niche          Niche
+  subniche       SubNiche?
+  type           TemplateType
+  name           String
+  description    String       @default("")
+  content        Json         @default("{}")
+  isActive       Boolean      @default(true) @map("is_active")
+  isDefault      Boolean      @default(false) @map("is_default")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([niche])
+  @@index([type])
+  @@index([niche, type])
+  @@index([isDefault])
+  @@map("templates")
+}
+
+// --- Stock Movement ---
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+  RETURN
+}
+
+model StockMovement {
+  id             String             @id @default(cuid())
+  organizationId String
+  productId      String
+  type           StockMovementType
+  quantity       Int
+  reason         String?
+  reference      String?
+  costPrice      Decimal?           @map("cost_price") @db.Decimal(12, 2)
+  createdAt      DateTime           @default(now())
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product            @relation(fields: [productId], references: [id])
+
+  @@index([organizationId])
+  @@index([productId])
+  @@index([organizationId, type])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// --- Contract ---
+
+model Contract {
+  id             String         @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?
+  type           ContractType   @default(OTHER)
+  status         ContractStatus @default(DRAFT)
+  supplierId     String?
+  customerId     String?
+  value          Decimal        @db.Decimal(12, 2) @default(0)
+  startDate      DateTime?      @map("start_date")
+  endDate        DateTime?      @map("end_date")
+  metadata       Json           @default("{}")
+  signedAt       DateTime?      @map("signed_at")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
+  customer       Customer?      @relation(fields: [customerId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([supplierId])
+  @@index([customerId])
+  @@map("contracts")
+}
+
+// --- Supplier ---
+
+model Supplier {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  document       String?
+  address        Json         @default("{}")
+  notes          String?
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+  contracts Contract[]
+
+  @@unique([organizationId, document])
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@map("suppliers")
+}
+
+// --- Purchase Order ---
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id             String             @id @default(cuid())
+  organizationId String
+  supplierId     String
+  number         String
+  status         PurchaseOrderStatus @default(DRAFT)
+  items          Json               @default("[]")
+  total          Decimal            @db.Decimal(12, 2)
+  notes          String?
+  expectedAt     DateTime?          @map("expected_at")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Supplier           @relation(fields: [supplierId], references: [id])
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@map("purchase_orders")
+}
+
+// --- Order (Sales) ---
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderType {
+  SALE
+  QUOTE
+  PROPOSAL
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  organizationId String
+  customerId     String
+  number         String
+  type           OrderType    @default(SALE)
+  status         OrderStatus  @default(DRAFT)
+  items          Json         @default("[]")
+  subtotal       Decimal      @db.Decimal(12, 2)
+  discount       Decimal      @default(0) @db.Decimal(12, 2)
+  total          Decimal      @db.Decimal(12, 2)
+  notes          String?
+  dueDate        DateTime?    @map("due_date")
+  deliveredAt    DateTime?    @map("delivered_at")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer     @relation(fields: [customerId], references: [id])
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([customerId])
+  @@map("orders")
+}
+
+// --- Appointment ---
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  organizationId String
+  customerId     String?
+  title          String
+  description    String?
+  status         AppointmentStatus @default(SCHEDULED)
+  startsAt       DateTime          @map("starts_at")
+  endsAt         DateTime          @map("ends_at")
+  location       String?
+  metadata       Json              @default("{}")
+  reminderSent   Boolean           @default(false) @map("reminder_sent")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer?         @relation(fields: [customerId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@index([startsAt])
+  @@map("appointments")
+}
+
+// --- Report ---
+
+enum ReportFormat {
+  PDF
+  XLSX
+  CSV
+  JSON
+}
+
+enum ReportSchedule {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONCE
+}
+
+model Report {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  type           String
+  config         Json            @default("{}")
+  format         ReportFormat    @default(PDF)
+  schedule       ReportSchedule  @default(ONCE)
+  lastRunAt      DateTime?       @map("last_run_at")
+  nextRunAt      DateTime?       @map("next_run_at")
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+ @@index([organizationId])
+ @@index([organizationId, type])
+ @@index([organizationId, isActive])
+ @@map("reports")
+}
+
+// --- Employee (RH) ---
+
+model Employee {
+ id String @id @default(cuid())
+ organizationId String
+ userId String?
+ name String
+ email String?
+ document String?
+ position String?
+ department String?
+ hireDate DateTime? @map("hire_date")
+ salary Decimal? @db.Decimal(12, 2)
+ status EmployeeStatus @default(ACTIVE)
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+ timeEntries TimeEntry[]
+ payrolls Payroll[]
+ leaveRequests LeaveRequest[]
+
+ @@index([organizationId])
+ @@index([organizationId, status])
+ @@index([department])
+ @@map("employees")
+}
+
+// --- Time Entry (Ponto) ---
+
+model TimeEntry {
+ id String @id @default(cuid())
+ organizationId String
+ employeeId String
+ date DateTime
+ clockIn DateTime @map("clock_in")
+ clockOut DateTime? @map("clock_out")
+ breakMinutes Int @default(0) @map("break_minutes")
+ notes String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+ @@index([organizationId])
+ @@index([employeeId])
+ @@index([employeeId, date])
+ @@map("time_entries")
+}
+
+// --- Payroll (Folha) ---
+
+model Payroll {
+ id String @id @default(cuid())
+ organizationId String
+ employeeId String
+ month Int
+ year Int
+ baseSalary Decimal @db.Decimal(12, 2)
+ additions Decimal @default(0) @db.Decimal(12, 2)
+ deductions Decimal @default(0) @db.Decimal(12, 2)
+ netPay Decimal @db.Decimal(12, 2)
+ status PayrollStatus @default(PENDING)
+ paidAt DateTime? @map("paid_at")
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+ @@unique([employeeId, month, year])
+ @@index([organizationId])
+ @@index([employeeId])
+ @@index([status])
+ @@map("payrolls")
+}
+
+// --- Leave Request (Férias/Licenças) ---
+
+model LeaveRequest {
+ id String @id @default(cuid())
+ organizationId String
+ employeeId String
+ type LeaveType @default(VACATION)
+ startDate DateTime @map("start_date")
+ endDate DateTime @map("end_date")
+ days Int
+ reason String?
+ status LeaveStatus @default(PENDING)
+ approvedById String?
+ approvedAt DateTime? @map("approved_at")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+ approver User? @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+ @@index([organizationId])
+ @@index([employeeId])
+ @@index([status])
+ @@map("leave_requests")
+}
+
+// --- Payment Config (Configuração de Gateway) ---
+
+model PaymentConfig {
+ id String @id @default(cuid())
+ organizationId String
+ provider PaymentProviderName @default(ASAAS)
+ isActive Boolean @default(true) @map("is_active")
+ apiKey String @map("api_key")
+ webhookSecret String? @map("webhook_secret")
+ sandbox Boolean @default(true)
+ settings Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+ @@unique([organizationId, provider])
+ @@index([organizationId])
+ @@index([organizationId, isActive])
+ @@map("payment_configs")
+}
+
+// --- Payment (Cobrança/Pagamento) ---
+
+model Payment {
+ id String @id @default(cuid())
+ organizationId String
+ customerId String?
+ externalId String? @map("external_id")
+ provider PaymentProviderName @default(ASAAS)
+ status PaymentStatus @default(PENDING)
+ method PaymentMethod @default(PIX)
+ amount Decimal @db.Decimal(12, 2)
+ fee Decimal @default(0) @db.Decimal(12, 2)
+ netAmount Decimal @db.Decimal(12, 2) @map("net_amount")
+ description String?
+ dueDate DateTime? @map("due_date")
+ paidAt DateTime? @map("paid_at")
+ pixCode String? @map("pix_code")
+ pixQrCode String? @map("pix_qr_code")
+ boletoUrl String? @map("boleto_url")
+ boletoBarCode String? @map("boleto_bar_code")
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ customer Customer? @relation(fields: [customerId], references: [id])
+
+ @@index([organizationId])
+ @@index([organizationId, status])
+ @@index([customerId])
+ @@index([externalId])
+ @@map("payments")
+}
+
+// --- Compliance Record (Registro de Conselho/Compliance) ---
+
+model ComplianceRecord {
+ id String @id @default(cuid())
+ organizationId String
+ council ComplianceCouncil
+ registrationNumber String @map("registration_number")
+ professionalName String @map("professional_name")
+ specialty String?
+ state String?
+ status ComplianceRecordStatus @default(PENDING_VERIFICATION)
+ verifiedAt DateTime? @map("verified_at")
+ expiresAt DateTime? @map("expires_at")
+ documentType String? @map("document_type")
+ documentUrl String? @map("document_url")
+ notes String?
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+ @@unique([organizationId, council, registrationNumber])
+ @@index([organizationId])
+ @@index([organizationId, council])
+ @@index([organizationId, status])
+ @@index([council])
+ @@map("compliance_records")
+}
+
+// --- WhatsApp Config (Configuração do Provedor) ---
+
+model WhatsAppConfig {
+ id String @id @default(cuid())
+ organizationId String
+ provider WhatsAppProviderName @default(EVOLUTION_API)
+ isActive Boolean @default(true) @map("is_active")
+ instanceName String? @map("instance_name")
+ apiKey String? @map("api_key")
+ apiUrl String? @map("api_url")
+ phoneNumber String? @map("phone_number")
+ businessId String? @map("business_id")
+ webhookUrl String? @map("webhook_url")
+ webhookSecret String? @map("webhook_secret")
+ settings Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ templates WhatsAppTemplate[]
+ messages WhatsAppMessage[]
+
+ @@unique([organizationId, provider])
+ @@index([organizationId])
+ @@index([organizationId, isActive])
+ @@map("whatsapp_configs")
+}
+
+// --- WhatsApp Template ---
+
+model WhatsAppTemplate {
+ id String @id @default(cuid())
+ organizationId String
+ configId String @map("config_id")
+ name String
+ category String
+ language String @default("pt_BR")
+ body String
+ header String?
+ footer String?
+ buttons Json @default("[]")
+ status WhatsAppTemplateStatus @default(PENDING)
+ externalId String? @map("external_id")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ config WhatsAppConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+ messages WhatsAppMessage[]
+
+ @@unique([organizationId, name])
+ @@index([organizationId])
+ @@index([organizationId, status])
+ @@index([configId])
+ @@map("whatsapp_templates")
+}
+
+// --- WhatsApp Message ---
+
+model WhatsAppMessage {
+ id String @id @default(cuid())
+ organizationId String
+ configId String @map("config_id")
+ templateId String? @map("template_id")
+ customerId String?
+ phone String
+ direction String @default("outbound")
+ status String @default("queued")
+ content String
+ externalId String? @map("external_id")
+ sentAt DateTime? @map("sent_at")
+ deliveredAt DateTime? @map("delivered_at")
+ readAt DateTime? @map("read_at")
+ error String?
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ config WhatsAppConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+ template WhatsAppTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+ customer Customer? @relation(fields: [customerId], references: [id])
+
+ @@index([organizationId])
+ @@index([organizationId, status])
+ @@index([configId])
+ @@index([customerId])
+ @@index([phone])
+ @@index([externalId])
+ @@map("whatsapp_messages")
 }

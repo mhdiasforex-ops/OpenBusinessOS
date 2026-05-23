@@ -79,13 +79,18 @@ export class FinancialController {
   @ApiOperation({ summary: 'Fluxo de caixa' })
   async getCashFlow(
     @Request() req: any,
-    @Query() query: CashFlowQueryDto,
     @Query('months') months?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     if (months) {
       return this.financialService.getCashFlowByMonths(req.user.organizationId, +months);
     }
-    return this.financialService.getCashFlow(req.user.organizationId, query);
+    if (startDate && endDate) {
+      return this.financialService.getCashFlow(req.user.organizationId, { startDate, endDate });
+    }
+    // Default: last 3 months
+    return this.financialService.getCashFlowByMonths(req.user.organizationId, 3);
   }
 
   // --- CMV ---
@@ -95,10 +100,13 @@ export class FinancialController {
   @ApiOperation({ summary: 'Custo da Mercadoria Vendida' })
   async getCMV(
     @Request() req: any,
-    @Query('month') month: number,
-    @Query('year') year: number,
+    @Query('month') month?: number,
+    @Query('year') year?: number,
   ) {
-    return this.financialService.getCMV(req.user.organizationId, +month, +year);
+    const now = new Date();
+    const m = month ? +month : now.getMonth() + 1;
+    const y = year ? +year : now.getFullYear();
+    return this.financialService.getCMV(req.user.organizationId, m, y);
   }
 
   // --- DRE ---
@@ -108,10 +116,13 @@ export class FinancialController {
   @ApiOperation({ summary: 'Demonstrativo de Resultados' })
   async getDRE(
     @Request() req: any,
-    @Query('month') month: number,
-    @Query('year') year: number,
+    @Query('month') month?: number,
+    @Query('year') year?: number,
   ) {
-    return this.financialService.getDRE(req.user.organizationId, +month, +year);
+    const now = new Date();
+    const m = month ? +month : now.getMonth() + 1;
+    const y = year ? +year : now.getFullYear();
+    return this.financialService.getDRE(req.user.organizationId, m, y);
   }
 
   @Get('dre/comparison')

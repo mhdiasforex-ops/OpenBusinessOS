@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BusinessOS — O ERP Open Source para MPEs Brasileiras</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&family=Source+Code+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --purple:#533afd;--purple-hover:#4434d4;--purple-light:#b9b9f9;
+  --navy:#061b31;--brand-dark:#1c1e54;--slate:#64748d;--dark-slate:#273951;
+  --white:#ffffff;--bg:#f6f9fc;--border:#e5edf5;
+  --shadow-card:rgba(50,50,93,.25) 0 30px 45px -30px,rgba(0,0,0,.1) 0 18px 36px -18px;
+  --shadow-ambient:rgba(23,23,23,.08) 0 15px 35px 0;
+  --radius:6px;--radius-sm:4px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;color:var(--navy);background:var(--white);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--purple);text-decoration:none;transition:color .15s}
+a:hover{color:var(--purple-hover)}
+.container{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px;max-width:1120px;margin:0 auto;padding:0 24px}
+.nav-logo{font-size:20px;font-weight:700;color:var(--navy);letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.nav-logo span{color:var(--purple)}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{font-size:14px;font-weight:400;color:var(--dark-slate)}
+.nav-links a:hover{color:var(--purple)}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 20px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--purple);color:var(--white)}
+.btn-primary:hover{background:var(--purple-hover)}
+.btn-ghost{background:transparent;color:var(--purple);border:1px solid var(--purple-light)}
+.btn-ghost:hover{background:rgba(83,58,253,.05)}
+.btn-lg{padding:14px 32px;font-size:16px;border-radius:var(--radius)}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:8px}
+.hamburger svg{width:24px;height:24px;stroke:var(--navy)}
+
+/* HERO */
+.hero{padding:96px 0 80px;text-align:center;background:linear-gradient(180deg,var(--white) 0%,var(--bg) 100%)}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(83,58,253,.08);color:var(--purple);padding:6px 14px;border-radius:100px;font-size:13px;font-weight:600;margin-bottom:24px;border:1px solid rgba(83,58,253,.15)}
+.hero-badge code{font-family:'Source Code Pro',monospace;font-size:12px;background:rgba(83,58,253,.12);padding:2px 6px;border-radius:3px}
+.hero h1{font-size:56px;font-weight:300;line-height:1.08;letter-spacing:-1.5px;color:var(--navy);max-width:800px;margin:0 auto 24px}
+.hero h1 strong{font-weight:700;color:var(--purple)}
+.hero p{font-size:20px;font-weight:300;color:var(--slate);max-width:600px;margin:0 auto 40px;line-height:1.5}
+.hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.hero-sub{font-size:13px;color:var(--slate);margin-top:16px;opacity:.7}
+
+/* PROBLEM */
+.problem{padding:80px 0;background:var(--white)}
+.problem h2{font-size:36px;font-weight:300;letter-spacing:-.8px;text-align:center;margin-bottom:16px}
+.problem>p{text-align:center;color:var(--slate);font-size:18px;max-width:600px;margin:0 auto 48px;font-weight:300}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.pain-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;text-align:center}
+.pain-card .icon{font-size:32px;margin-bottom:16px}
+.pain-card h3{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--navy)}
+.pain-card p{font-size:15px;color:var(--slate);line-height:1.5;font-weight:300}
+
+/* SOLUTION */
+.solution{padding:80px 0;background:var(--brand-dark);color:var(--white)}
+.solution h2{font-size:36px;font-weight:300;letter-spacing:-.8px;text-align:center;margin-bottom:16px;color:var(--white)}
+.solution>p{text-align:center;color:rgba(255,255,255,.7);font-size:18px;max-width:640px;margin:0 auto 48px;font-weight:300}
+.solution-arch{display:grid;grid-template-columns:1fr 2fr 1fr;gap:24px;align-items:center;max-width:900px;margin:0 auto 48px}
+.arch-box{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius);padding:24px;text-align:center}
+.arch-box.core{background:rgba(83,58,253,.2);border-color:rgba(83,58,253,.4)}
+.arch-box h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.arch-box p{font-size:13px;color:rgba(255,255,255,.65);line-height:1.4}
+.arch-box ul{list-style:none;text-align:left;font-size:13px;color:rgba(255,255,255,.7);line-height:1.8}
+.arch-arrow{font-size:24px;color:rgba(255,255,255,.3);text-align:center}
+
+/* NICHOS */
+.nichos{padding:80px 0;background:var(--bg)}
+.nichos h2{font-size:36px;font-weight:300;letter-spacing:-.8px;text-align:center;margin-bottom:16px}
+.nichos>p{text-align:center;color:var(--slate);font-size:18px;max-width:600px;margin:0 auto 48px;font-weight:300}
+.nicho-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.nicho-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:32px 20px;text-align:center;transition:all .2s;cursor:pointer;text-decoration:none;color:inherit;display:block}
+.nicho-card:hover{box-shadow:var(--shadow-card);transform:translateY(-2px);border-color:var(--purple-light)}
+.nicho-card .icon{font-size:36px;margin-bottom:12px;display:block}
+.nicho-card h3{font-size:17px;font-weight:600;margin-bottom:6px;color:var(--navy)}
+.nicho-card p{font-size:13px;color:var(--slate);line-height:1.4}
+.nicho-card .tag{display:inline-block;margin-top:12px;font-size:11px;font-weight:600;color:var(--purple);background:rgba(83,58,253,.08);padding:3px 10px;border-radius:100px}
+
+/* DIFFERENTIALS */
+.diffs{padding:80px 0;background:var(--white)}
+.diffs h2{font-size:36px;font-weight:300;letter-spacing:-.8px;text-align:center;margin-bottom:48px}
+.diff-list{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:900px;margin:0 auto}
+.diff-item{display:flex;gap:16px;padding:24px;border-radius:var(--radius);border:1px solid var(--border)}
+.diff-item .num{font-size:28px;font-weight:700;color:var(--purple);min-width:40px}
+.diff-item h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.diff-item p{font-size:14px;color:var(--slate);line-height:1.5}
+
+/* CTA FINAL */
+.cta-final{padding:80px 0;background:var(--brand-dark);text-align:center;color:var(--white)}
+.cta-final h2{font-size:40px;font-weight:300;letter-spacing:-1px;margin-bottom:16px}
+.cta-final p{font-size:18px;color:rgba(255,255,255,.7);max-width:500px;margin:0 auto 32px;font-weight:300}
+
+/* FOOTER */
+.footer{padding:48px 0;background:#0a0e27;color:rgba(255,255,255,.5);font-size:13px;text-align:center}
+.footer a{color:rgba(255,255,255,.7)}
+.footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:16px}
+
+/* RESPONSIVE */
+@media(max-width:1024px){
+  .pain-grid{grid-template-columns:repeat(2,1fr)}
+  .nicho-grid{grid-template-columns:repeat(3,1fr)}
+  .diff-list{grid-template-columns:1fr}
+  .solution-arch{grid-template-columns:1fr;gap:16px}
+  .arch-arrow{transform:rotate(90deg)}
+}
+@media(max-width:768px){
+  .nav-links{display:none}
+  .hamburger{display:block}
+  .hero h1{font-size:36px;letter-spacing:-.8px}
+  .hero p{font-size:17px}
+  .pain-grid{grid-template-columns:1fr}
+  .nicho-grid{grid-template-columns:repeat(2,1fr)}
+  .diff-list{grid-template-columns:1fr}
+  .solution-arch{grid-template-columns:1fr}
+  .hero{padding:64px 0 48px}
+}
+@media(max-width:480px){
+  .nicho-grid{grid-template-columns:1fr}
+  .hero h1{font-size:28px}
+  .hero-actions{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">Business<span>OS</span></a>
+    <div class="nav-links">
+      <a href="#problema">Problema</a>
+      <a href="#solucao">Solucao</a>
+      <a href="#nichos">Nichos</a>
+      <a href="#diferenciais">Diferenciais</a>
+      <a href="https://github.com" class="btn btn-ghost" style="font-size:13px;padding:6px 14px">GitHub</a>
+      <a href="#cta" class="btn btn-primary" style="font-size:13px;padding:6px 14px">Comecar gratis</a>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('.nav-links').style.display=document.querySelector('.nav-links').style.display==='flex'?'none':'flex'" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">100% Open Source <code>v0.1.0</code></div>
+    <h1>O ERP que <strong>cresce com o seu negocio</strong> — horizontal por natureza, vertical por nicho</h1>
+    <p>BusinessOS e o primeiro ecossistema open source brasileiro que funciona para qualquer MPE e, ao mesmo tempo, funciona ESPECIFICAMENTE para cada setor.</p>
+    <div class="hero-actions">
+      <a href="#cta" class="btn btn-primary btn-lg">Comecar gratis</a>
+      <a href="#solucao" class="btn btn-ghost btn-lg">Ver como funciona</a>
+    </div>
+    <p class="hero-sub">Sem cartao de credito. Sem limite de usuarios. Sem travar no meio do caminho.</p>
+  </div>
+</section>
+
+<!-- PROBLEMA -->
+<section class="problem" id="problema">
+  <div class="container">
+    <h2>Voce nao deveria precisar de 5 softwares para gerir 1 empresa</h2>
+    <p>Micro e pequenas empresas brasileiras vivem refens da fragmentacao.</p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">🧩</div>
+        <h3>ERP generico</h3>
+        <p>ContaAzul e Omie funcionam para qualquer empresa, mas nao funcionam ESPECIFICAMENTE para a sua. Nada de prontuario eletronico, agenda medica, diário de classe ou gestao de obras.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">💸</div>
+        <h3>Software vertical caro</h3>
+        <p>Domínio para advocacia, iClinic para saude, Sponte para educacao — sao otimos no nicho mas custam 3x mais e nao tem NF-e, CRM, RH ou fiscal completo.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">🔗</div>
+        <h3>Integracoes quebradas</h3>
+        <p>Para ter tudo, voce precisa de 3 a 5 sistemas diferentes que nao conversam entre si: ERP + CRM + fiscal + RH + nicho. Dados duplicados, erros manuais, horas perdidas.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">🔒</div>
+        <h3>Lock-in do fornecedor</h3>
+        <p>Seus dados ficam preso na plataforma. Quer migrar? Perde historico, processos e meses de trabalho. E se o software sair do ar ou subir o preco, voce nao tem alternativa.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">📊</div>
+        <h3>Fiscal separado do operacional</h3>
+        <p>Nenhum software de nicho emite NF-e, NFS-e e SPED. Voce sempre precisa do contador com sistema separado — e a comunicacao e manual.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">📈</div>
+        <h3>Nao escala com voce</h3>
+        <p>Comecou como MEI no Nibo, cresceu e precisa migrar pro ContaAzul. Depois precisa de CRM e vai pro HubSpot. Cada migracao e uma dor de cabeca recomecada.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUCAO -->
+<section class="solution" id="solucao">
+  <div class="container">
+    <h2>Um core horizontal. Plugins verticais. Tudo integrado.</h2>
+    <p>BusinessOS combina a completude de um ERP horizontal com a profundidade de um software vertical — ativando apenas os modulos que o seu negocio precisa.</p>
+    <div class="solution-arch">
+      <div class="arch-box">
+        <h3>Plugins Verticais</h3>
+        <ul>
+          <li>🏥 Prontuario (Saude)</li>
+          <li>📋 Diário de Classe (Educ)</li>
+          <li>🏗️ Gestao de Obras</li>
+          <li>⚖️ Processos Juridicos</li>
+          <li>🍽️ Cardapio Digital</li>
+          <li>+ 20 modulos</li>
+        </ul>
+      </div>
+      <div class="arch-box core">
+        <h3>⚡ BusinessOS Core</h3>
+        <ul>
+          <li>💰 Financeiro — caixa, contas, DRE</li>
+          <li>🧾 Fiscal — NF-e, NFC-e, NFS-e, SPED</li>
+          <li>👥 CRM — funil, captação, WhatsApp</li>
+          <li>🤝 RH — ponto, folha, e-Social</li>
+          <li>📊 BI — dashboards por nicho</li>
+          <li>🔗 API — integracoes abertas</li>
+        </ul>
+      </div>
+      <div class="arch-box">
+        <h3>Infraestrutura</h3>
+        <ul>
+          <li>🌐 Multi-tenant SaaS</li>
+          <li>☁️ Cloud-native</li>
+          <li>🔐 LGPD nativo</li>
+          <li>📱 App mobile</li>
+          <li>🔌 Marketplace de apps</li>
+          <li>🛡️ Open source</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NICHOS -->
+<section class="nichos" id="nichos">
+  <div class="container">
+    <h2>Feito para o seu nicho. Todos os 8.</h2>
+    <p>Cada setor tem suas proprias regras, fluxos e dores. BusinessOS entende isso.</p>
+    <div class="nicho-grid">
+      <a href="templates/varejo.html" class="nicho-card">
+        <span class="icon">🛒</span>
+        <h3>Varejo</h3>
+        <p>PDV, estoque, NFC-e, multi-loja, comissoes</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/ecommerce.html" class="nicho-card">
+        <span class="icon">🌐</span>
+        <h3>E-commerce</h3>
+        <p>Vitrine, marketplaces, frete, NF-e, cobranca</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/servicos.html" class="nicho-card">
+        <span class="icon">💼</span>
+        <h3>Servicos</h3>
+        <p>Contratos, projetos, NFS-e, recorrência, CRM</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/alimentacao.html" class="nicho-card">
+        <span class="icon">🍽️</span>
+        <h3>Alimentacao</h3>
+        <p>Cardapio, mesas, delivery, receitas, NFC-e</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/construcao.html" class="nicho-card">
+        <span class="icon">🏗️</span>
+        <h3>Construcao</h3>
+        <p>Orcamentacao, obras, medicao, ART/CREA</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/saude.html" class="nicho-card">
+        <span class="icon">🏥</span>
+        <h3>Saude</h3>
+        <p>Agenda, prontuario, TISS, convenios, LGPD</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/educacao.html" class="nicho-card">
+        <span class="icon">📚</span>
+        <h3>Educacao</h3>
+        <p>Matriculas, diario, mensalidades, inadimplencia</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+      <a href="templates/profissionais.html" class="nicho-card">
+        <span class="icon">⚖️</span>
+        <h3>Prof. Liberais</h3>
+        <p>NFS-e, CRM, horas, compliance OAB/CREA/CRM</p>
+        <span class="tag">Ver solucao</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- DIFERENCIAIS -->
+<section class="diffs" id="diferenciais">
+  <div class="container">
+    <h2>Por que BusinessOS e diferente</h2>
+    <div class="diff-list">
+      <div class="diff-item">
+        <span class="num">01</span>
+        <div><h3>Open source de verdade</h3><p>Codigo aberto, sem lock-in. Seus dados sao seus. Migre, customize, contribua. Licenca MIT — comercialize em cima se quiser.</p></div>
+      </div>
+      <div class="diff-item">
+        <span class="num">02</span>
+        <div><h3>Fiscal 100% brasileiro</h3><p>NF-e, NFC-e, NFS-e, CT-e, SPED, EFD-Reinf, e-Social — tudo nativo, sem integracao extra. O unico ERP open source com isso.</p></div>
+      </div>
+      <div class="diff-item">
+        <span class="num">03</span>
+        <div><h3>CRM integrado ao fiscal</h3><p>Capture leads, feche vendas e emita a nota fiscal no mesmo fluxo. Nenhum concorrente brasileiro faz isso.</p></div>
+      </div>
+      <div class="diff-item">
+        <span class="num">04</span>
+        <div><h3>Cresce com voce</h3><p>Comece como MEI usando so financeiro + NFS-e. Ative plugins conforme cresce. Sem migracao, sem dor de cabeca, sem perder dados.</p></div>
+      </div>
+      <div class="diff-item">
+        <span class="num">05</span>
+        <div><h3>WhatsApp como canal de negocio</h3><p>Agendamento, cobranca, follow-up e suporte via WhatsApp integrado ao CRM. O canal que o brasileiro realmente usa.</p></div>
+      </div>
+      <div class="diff-item">
+        <span class="num">06</span>
+        <div><h3>Marketplace de plugins</h3><p>Terceiros criam e vendem modulos para nichos especificos. Voce escolhe o que ativar. Modelo tipo Omie Apps, mas open source.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-final" id="cta">
+  <div class="container">
+    <h2>Parou de fragmentar. Comecou a gestir.</h2>
+    <p>BusinessOS e gratuito, open source e pronto para o seu nicho.</p>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="https://github.com" class="btn btn-primary btn-lg">Instalar agora</a>
+      <a href="#" class="btn btn-ghost btn-lg" style="color:var(--white);border-color:rgba(255,255,255,.3)">Falar com especialista</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-links">
+      <a href="#">Documentacao</a>
+      <a href="#">GitHub</a>
+      <a href="#">Comunidade</a>
+      <a href="#">Blog</a>
+      <a href="#">Contato</a>
+    </div>
+    <p>&copy; 2026 BusinessOS. Licenca MIT. Feito no Brasil para o Brasil.</p>
+  </div>
+</footer>
+
+</body>
+</html>

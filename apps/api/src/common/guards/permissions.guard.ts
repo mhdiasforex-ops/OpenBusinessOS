@@ -22,7 +22,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const hasPermission = requiredPermissions.every((perm) =>
-      user.permissions.includes(perm),
+      this.hasPermission(user.permissions, perm),
     );
 
     if (!hasPermission) {
@@ -30,5 +30,22 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Check if user has a specific permission.
+   * "manage" implies "read" — if user has "resource:manage",
+   * they also have "resource:read".
+   */
+  private hasPermission(userPermissions: string[], required: string): boolean {
+    if (userPermissions.includes(required)) return true;
+
+    // If required is "resource:read", check if user has "resource:manage"
+    const [resource, action] = required.split(':');
+    if (action === 'read' && userPermissions.includes(`${resource}:manage`)) {
+      return true;
+    }
+
+    return false;
   }
 }

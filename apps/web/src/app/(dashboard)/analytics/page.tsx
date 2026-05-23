@@ -4,10 +4,12 @@ export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@openbusinessos/utils';
-import { Download, TrendingUp, TrendingDown, Users, Package, AlertTriangle, BarChart3, PieChart } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Users, Package, AlertTriangle, BarChart3, PieChart, Search, Loader2, Star, Shield, ShieldAlert, ShieldX, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
 
 interface AnalyticsMetrics {
   income: number;
@@ -20,10 +22,46 @@ interface AnalyticsMetrics {
   overdueCount: number;
 }
 
+interface Anomaly {
+  type: string;
+  description: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  data: Record<string, any>;
+}
+
+interface ProductPerformance {
+  id: string;
+  name: string;
+  sku: string;
+  salePrice: string;
+  costPrice: string;
+  stockQuantity: number;
+  minStock: number;
+  margin: number;
+  isLowStock: boolean;
+}
+
+const anomalyTypeLabels: Record<string, string> = {
+  EXPENSE_ABOVE_THRESHOLD: 'Despesa Acima do Limite',
+  REVENUE_DROP: 'Queda de Receita',
+  ZERO_STOCK_ACTIVE_PRODUCTS: 'Estoque Zerado',
+  VIP_WITHOUT_ORDER: 'VIP sem Pedido',
+};
+
+const severityConfig: Record<string, { icon: React.ElementType; color: string; badge: 'outline' | 'default' | 'destructive' | 'secondary' }> = {
+  LOW: { icon: Shield, color: 'text-blue-500', badge: 'outline' },
+  MEDIUM: { icon: ShieldAlert, color: 'text-yellow-500', badge: 'secondary' },
+  HIGH: { icon: ShieldX, color: 'text-orange-500', badge: 'default' },
+  CRITICAL: { icon: ShieldX, color: 'text-red-600', badge: 'destructive' },
+};
+
 export default function AnalyticsPage() {
+  const queryClient = useQueryClient();
+  const [anomalyResults, setAnomalyResults] = useState<Anomaly[] | null>(null);
+
   const { data: metrics, isLoading: metricsLoading } = useQuery<AnalyticsMetrics>({
     queryKey: ['analytics-metrics'],
-    queryFn: async () => { const r = await api.get('/analytics/metrics'); return r.data as AnalyticsMetrics; },
+    queryFn: async () => { const r = await api.get('/analytics/metrics'); return r as AnalyticsMetrics; },
   });
 
   const { data: revenueSeries } = useQuery({
@@ -41,13 +79,35 @@ export default function AnalyticsPage() {
     queryFn: () => api.get('/analytics/customer-segments'),
   });
 
+  const { data: productPerformance, isLoading: productsLoading } = useQuery<ProductPerformance[]>({
+    queryKey: ['product-performance'],
+    queryFn: async () => { const r = await api.get('/analytics/product-performance', { limit: 10 }); return (Array.isArray(r) ? r : []) as ProductPerformance[]; },
+  });
+
+  const detectAnomaliesMutation = useMutation({
+    mutationFn: () => api.post('/analytics/detect-anomalies', {}),
+    onSuccess: (data) => {
+      setAnomalyResults(data as Anomaly[]);
+    },
+  });
+
+  const anomalyList = anomalyResults || [];
+
   const maxRevenue = Math.max(...(revenueSeries as any[])?.map((i: any) => Math.max(i.income || 0, i.expense || 0)) || [1], 1);
 
   const exportCSV = () => {
     const rows = (revenueSeries as any[]) || [];
     const header = 'Data,Receita,Despesa,Lucro\n';
     const body = rows.map(r => `${r.date},${r.income},${r.expense},${r.profit}`).join('\n');
-    const blob = new Blob([header + body], { type: 'text/csv' });
+
+    const products = (productPerformance as any[]) || [];
+    const prodHeader = '\n\nProdutos\nNome,SKU,Preco Venda,Preco Custo,Margem%,Estoque,Estoque Min\n';
+    const prodBody = products.map(p => `${p.name},${p.sku},${p.salePrice},${p.costPrice},${p.margin},${p.stockQuantity},${p.minStock}`).join('\n');
+
+    const anomHeader = '\n\nAnomalias\nTipo,Severidade,Descricao\n';
+    const anomBody = anomalyList.map(a => `${anomalyTypeLabels[a.type] || a.type},${a.severity},"${a.description}"`).join('\n');
+
+    const blob = new Blob([header + body + prodHeader + prodBody + anomHeader + anomBody], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -70,14 +130,25 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Analytics</h1>
-        <Button variant="outline" onClick={exportCSV} className="gap-2">
-          <Download className="h-4 w-4" /> Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => detectAnomaliesMutation.mutate()}
+            disabled={detectAnomaliesMutation.isPending}
+            className="gap-2"
+          >
+            {detectAnomaliesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            Detectar Anomalias
+          </Button>
+          <Button variant="outline" onClick={exportCSV} className="gap-2">
+            <Download className="h-4 w-4" /> Exportar CSV
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
       {metricsLoading ? (
-        <p>Carregando métricas...</p>
+        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -119,13 +190,54 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* Anomalies Panel - only shown after detection */}
+      {anomalyList.length > 0 && (
+        <Card className="border-orange-300 bg-orange-50/50 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+              <AlertTriangle className="h-5 w-5" />
+              Anomalias Detectadas ({anomalyList.length})
+            </CardTitle>
+            <CardDescription>Problemas identificados pela análise automática</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {anomalyList.map((anomaly, index) => {
+                const config = severityConfig[anomaly.severity] || severityConfig.LOW;
+                const Icon = config.icon;
+                return (
+                  <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-card border">
+                    <Icon className={`h-5 w-5 mt-0.5 ${config.color}`} />
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{anomalyTypeLabels[anomaly.type] || anomaly.type}</span>
+                        <Badge variant={config.badge}>{anomaly.severity}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{anomaly.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {detectAnomaliesMutation.isError && (
+        <Card className="border-red-300">
+          <CardContent className="py-4">
+            <p className="text-sm text-red-600">Erro ao detectar anomalias. Tente novamente.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Revenue vs Expense Chart */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Evolução Receita x Despesa</CardTitle>
-              <CardDescription>Últimos 6 meses</CardDescription>
+              <CardDescription>Últimos 12 meses</CardDescription>
             </div>
             <div className="flex gap-4 text-xs">
               <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded" /> Receita</span>
@@ -136,7 +248,7 @@ export default function AnalyticsPage() {
         <CardContent>
           {revenueSeries?.length ? (
             <div className="space-y-3">
-              {(revenueSeries as any[]).map((item) => (
+              {(revenueSeries as any[]).slice(-6).map((item) => (
                 <div key={item.date} className="space-y-1">
                   <div className="flex items-center gap-4 text-sm">
                     <span className="w-20 font-mono text-muted-foreground">{item.date}</span>
@@ -166,6 +278,46 @@ export default function AnalyticsPage() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Top Products Performance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Star className="h-5 w-5" /> Top Produtos</CardTitle>
+            <CardDescription>Desempenho por margem e estoque</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {productsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : productPerformance && productPerformance.length > 0 ? (
+              <div className="space-y-3">
+                {productPerformance.map((product) => (
+                  <div key={product.id} className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className="text-sm font-medium">{formatCurrency(Number(product.salePrice))}</span>
+                        <Badge variant={product.margin >= 30 ? 'default' : product.margin >= 15 ? 'secondary' : 'destructive'} className="text-xs">
+                          {product.margin.toFixed(0)}%
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 justify-end">
+                        <span className={`text-xs ${product.isLowStock ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                          Estoque: {product.stockQuantity}
+                        </span>
+                        {product.isLowStock && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">Sem produtos</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Category Breakdown */}
         <Card>
           <CardHeader>
@@ -191,7 +343,9 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Customer Segments */}
         <Card>
           <CardHeader>
@@ -235,30 +389,30 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Profit Summary */}
-      <Card>
-        <CardHeader><CardTitle>Resumo de Lucro</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-sm text-muted-foreground">Receita Total</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(metrics?.income || 0)}</p>
+        {/* Profit Summary */}
+        <Card>
+          <CardHeader><CardTitle>Resumo de Lucro</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="text-center p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Receita Total</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(metrics?.income || 0)}</p>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Despesa Total</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(metrics?.expense || 0)}</p>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Lucro Líquido</p>
+                <p className={`text-2xl font-bold ${(metrics?.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(metrics?.profit || 0)}
+                </p>
+              </div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-sm text-muted-foreground">Despesa Total</p>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(metrics?.expense || 0)}</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-              <p className={`text-2xl font-bold ${(metrics?.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(metrics?.profit || 0)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

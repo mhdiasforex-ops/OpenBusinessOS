@@ -1,5 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Niche, TemplateType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { ALL_NICHE_TEMPLATES } from '../src/templates/seed-data';
+import { HEALTH_CARE_TEMPLATES, EDUCATION_TEMPLATES, CONSTRUCTION_TEMPLATES, OTHER_TEMPLATES } from '../src/templates/seed-data-2';
+import { BEAUTY_TEMPLATES, FITNESS_TEMPLATES, LEGAL_TEMPLATES, ACCOUNTING_TEMPLATES } from '../src/templates/seed-data-3';
+import { TECH_SERVICES_TEMPLATES, REAL_ESTATE_TEMPLATES, AUTOMOTIVE_TEMPLATES, AGRICULTURE_TEMPLATES } from '../src/templates/seed-data-4';
 
 const prisma = new PrismaClient();
 
@@ -64,92 +68,43 @@ async function main() {
     },
   });
 
-  // Create sample products
-  const products = await Promise.all([
-    prisma.product.create({
-      data: {
-        organizationId: org.id,
-        name: 'Camiseta Básica',
-        sku: 'CAM-001',
-        category: 'Vendas',
-        costPrice: 15.00,
-        salePrice: 39.90,
-        unit: 'un',
-        stockQuantity: 100,
-        minStock: 10,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        organizationId: org.id,
-        name: 'Calça Jeans',
-        sku: 'CAL-001',
-        category: 'Vendas',
-        costPrice: 35.00,
-        salePrice: 89.90,
-        unit: 'un',
-        stockQuantity: 50,
-        minStock: 5,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        organizationId: org.id,
-        name: 'Tênis Esportivo',
-        sku: 'TEN-001',
-        category: 'Vendas',
-        costPrice: 80.00,
-        salePrice: 199.90,
-        unit: 'un',
-        stockQuantity: 3,
-        minStock: 5,
-      },
-    }),
-  ]);
+ // Create sample products
+ const products = await Promise.all([
+ prisma.product.upsert({
+ where: { organizationId_sku: { organizationId: org.id, sku: 'CAM-001' } },
+ update: {},
+ create: { organizationId: org.id, name: 'Camiseta Básica', sku: 'CAM-001', category: 'Vendas', costPrice: 15.00, salePrice: 39.90, unit: 'un', stockQuantity: 100, minStock: 10 },
+ }),
+ prisma.product.upsert({
+ where: { organizationId_sku: { organizationId: org.id, sku: 'CAL-001' } },
+ update: {},
+ create: { organizationId: org.id, name: 'Calça Jeans', sku: 'CAL-001', category: 'Vendas', costPrice: 35.00, salePrice: 89.90, unit: 'un', stockQuantity: 50, minStock: 5 },
+ }),
+ prisma.product.upsert({
+ where: { organizationId_sku: { organizationId: org.id, sku: 'TEN-001' } },
+ update: {},
+ create: { organizationId: org.id, name: 'Tênis Esportivo', sku: 'TEN-001', category: 'Vendas', costPrice: 80.00, salePrice: 199.90, unit: 'un', stockQuantity: 3, minStock: 5 },
+ }),
+ ]);
 
-  // Create sample customers
-  const customers = await Promise.all([
-    prisma.customer.create({
-      data: {
-        organizationId: org.id,
-        name: 'João Silva',
-        email: 'joao@email.com',
-        phone: '(11) 99999-0001',
-        document: '123.456.789-00',
-        segment: 'REGULAR',
-        ltv: 1500.00,
-        totalOrders: 8,
-        lastOrderAt: new Date('2026-04-15'),
-        tags: ['varejo', 'recorrente'],
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        organizationId: org.id,
-        name: 'Maria Oliveira',
-        email: 'maria@email.com',
-        phone: '(11) 99999-0002',
-        segment: 'VIP',
-        ltv: 12000.00,
-        totalOrders: 25,
-        lastOrderAt: new Date('2026-05-10'),
-        tags: ['vip', 'atacado'],
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        organizationId: org.id,
-        name: 'Pedro Santos',
-        email: 'pedro@email.com',
-        phone: '(11) 99999-0003',
-        segment: 'AT_RISK',
-        ltv: 800.00,
-        totalOrders: 2,
-        lastOrderAt: new Date('2026-02-01'),
-        tags: ['inadimplente'],
-      },
-    }),
-  ]);
+ // Create sample customers (skip if already exist)
+ const customers = await Promise.all([
+ prisma.customer.upsert({
+ where: { organizationId_email: { organizationId: org.id, email: 'joao@email.com' } },
+ update: {},
+ create: { organizationId: org.id, name: 'João Silva', email: 'joao@email.com', phone: '(11) 99999-0001', document: '123.456.789-00', segment: 'REGULAR', ltv: 1500.00, totalOrders: 8, lastOrderAt: new Date('2026-04-15'), tags: ['varejo', 'recorrente'] },
+ }),
+ prisma.customer.upsert({
+ where: { organizationId_email: { organizationId: org.id, email: 'maria@email.com' } },
+ update: {},
+ create: { organizationId: org.id, name: 'Maria Oliveira', email: 'maria@email.com', phone: '(11) 99999-0002', segment: 'VIP', ltv: 12000.00, totalOrders: 25, lastOrderAt: new Date('2026-05-10'), tags: ['vip', 'atacado'] },
+ }),
+ prisma.customer.upsert({
+ where: { organizationId_email: { organizationId: org.id, email: 'pedro@email.com' } },
+ update: {},
+ create: { organizationId: org.id, name: 'Pedro Santos', email: 'pedro@email.com', phone: '(11) 99999-0003', segment: 'AT_RISK', ltv: 800.00, totalOrders: 2, lastOrderAt: new Date('2026-02-01'), tags: ['inadimplente'] },
+ }),
+ ]);
 
   // Create sample transactions
   const now = new Date();
@@ -194,21 +149,24 @@ async function main() {
       isActive: true,
       steps: {
         create: [
-          {
-            order: 1,
-            type: 'SEND_WHATSAPP',
-            config: { message: 'Olá! Seu pagamento está em atraso. Pode regularizar?', to: '{{customerPhone}}' },
-          },
-          {
-            order: 2,
-            type: 'DELAY',
-            config: { seconds: 259200 }, // 3 days
-          },
-          {
-            order: 3,
-            type: 'SEND_EMAIL',
-            config: { subject: 'Pagamento em atraso — 2ª cobrança', to: '{{customerEmail}}' },
-          },
+        {
+          order: 1,
+          type: 'SEND_WHATSAPP',
+          organizationId: org.id,
+          config: { message: 'Olá! Seu pagamento está em atraso. Pode regularizar?', to: '{{customerPhone}}' },
+        },
+        {
+          order: 2,
+          type: 'DELAY',
+          organizationId: org.id,
+          config: { seconds: 259200 }, // 3 days
+        },
+        {
+          order: 3,
+          type: 'SEND_EMAIL',
+          organizationId: org.id,
+          config: { subject: 'Pagamento em atraso — 2ª cobrança', to: '{{customerEmail}}' },
+        },
         ],
       },
     },
@@ -234,16 +192,60 @@ async function main() {
     },
   });
 
-  console.log('Seeding completed!');
-  console.log({
-    organization: org.slug,
-    user: user.email,
-    products: products.length,
-    customers: customers.length,
-    transactions: transactions.length,
-    workflow: workflow.id,
-    dashboard: dashboard.id,
-  });
+ // Seed templates for all 16 niches
+ console.log('Seeding templates...');
+ const allTemplateArrays = [
+   ...Object.values(ALL_NICHE_TEMPLATES),
+   HEALTH_CARE_TEMPLATES,
+   EDUCATION_TEMPLATES,
+   CONSTRUCTION_TEMPLATES,
+   OTHER_TEMPLATES,
+   BEAUTY_TEMPLATES,
+   FITNESS_TEMPLATES,
+   LEGAL_TEMPLATES,
+   ACCOUNTING_TEMPLATES,
+   TECH_SERVICES_TEMPLATES,
+   REAL_ESTATE_TEMPLATES,
+   AUTOMOTIVE_TEMPLATES,
+   AGRICULTURE_TEMPLATES,
+ ];
+
+ let templateCount = 0;
+ for (const templates of allTemplateArrays) {
+   for (const t of templates) {
+     const existing = await prisma.template.findFirst({
+       where: { organizationId: org.id, niche: t.niche, name: t.name, type: t.type },
+     });
+     if (!existing) {
+       await prisma.template.create({
+         data: {
+           organizationId: org.id,
+           niche: t.niche,
+           subniche: null,
+           type: t.type,
+           name: t.name,
+           description: t.description,
+           content: t.content as any,
+           isActive: true,
+           isDefault: t.isDefault,
+         },
+       });
+       templateCount++;
+     }
+   }
+ }
+
+ console.log('Seeding completed!');
+ console.log({
+ organization: org.slug,
+ user: user.email,
+ products: products.length,
+ customers: customers.length,
+ transactions: transactions.length,
+ workflow: workflow.id,
+ dashboard: dashboard.id,
+ templates: templateCount,
+ });
 }
 
 main()

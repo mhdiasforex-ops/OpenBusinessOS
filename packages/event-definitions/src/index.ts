@@ -21,8 +21,16 @@ export const EventTypes = {
   WORKFLOW_TRIGGERED: 'WORKFLOW_TRIGGERED',
   WORKFLOW_COMPLETED: 'WORKFLOW_COMPLETED',
   WORKFLOW_FAILED: 'WORKFLOW_FAILED',
-  ONBOARDING_COMPLETED: 'ONBOARDING_COMPLETED',
-  ANOMALY_DETECTED: 'ANOMALY_DETECTED',
+ ONBOARDING_COMPLETED: 'ONBOARDING_COMPLETED',
+ ANOMALY_DETECTED: 'ANOMALY_DETECTED',
+ ORDER_CREATED: 'ORDER_CREATED',
+ ORDER_UPDATED: 'ORDER_UPDATED',
+ ORDER_STATUS_CHANGED: 'ORDER_STATUS_CHANGED',
+ QUOTE_CONVERTED: 'QUOTE_CONVERTED',
+ APPOINTMENT_CREATED: 'APPOINTMENT_CREATED',
+ APPOINTMENT_CONFIRMED: 'APPOINTMENT_CONFIRMED',
+ APPOINTMENT_CANCELLED: 'APPOINTMENT_CANCELLED',
+ REPORT_EXECUTED: 'REPORT_EXECUTED',
 } as const;
 
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];
@@ -141,11 +149,43 @@ export interface OnboardingCompletedPayload {
 }
 
 export interface AnomalyDetectedPayload {
-  organizationId: string;
-  type: string;
-  description: string;
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  data: Record<string, any>;
+ organizationId: string;
+ type: string;
+ description: string;
+ severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+ data: Record<string, any>;
+}
+
+export interface OrderCreatedPayload {
+ orderId: string;
+ organizationId: string;
+ customerId: string;
+ type: string;
+ status: string;
+ total: number;
+ number: string;
+}
+
+export interface OrderUpdatedPayload {
+ orderId: string;
+ organizationId: string;
+ changes: Record<string, any>;
+}
+
+export interface OrderStatusChangedPayload {
+ orderId: string;
+ organizationId: string;
+ previousStatus: string;
+ newStatus: string;
+ total: number;
+}
+
+export interface QuoteConvertedPayload {
+ orderId: string;
+ organizationId: string;
+ customerId: string;
+ total: number;
+ previousType: string;
 }
 
 // --- Event Map (type-safe lookup) ---
@@ -165,6 +205,10 @@ export interface EventPayloadMap {
   [EventTypes.WORKFLOW_TRIGGERED]: WorkflowTriggeredPayload;
   [EventTypes.WORKFLOW_COMPLETED]: WorkflowCompletedPayload;
   [EventTypes.WORKFLOW_FAILED]: WorkflowFailedPayload;
-  [EventTypes.ONBOARDING_COMPLETED]: OnboardingCompletedPayload;
-  [EventTypes.ANOMALY_DETECTED]: AnomalyDetectedPayload;
+ [EventTypes.ONBOARDING_COMPLETED]: OnboardingCompletedPayload;
+ [EventTypes.ANOMALY_DETECTED]: AnomalyDetectedPayload;
+ [EventTypes.ORDER_CREATED]: OrderCreatedPayload;
+ [EventTypes.ORDER_UPDATED]: OrderUpdatedPayload;
+ [EventTypes.ORDER_STATUS_CHANGED]: OrderStatusChangedPayload;
+ [EventTypes.QUOTE_CONVERTED]: QuoteConvertedPayload;
 }

@@ -42,7 +42,7 @@ async function main() {
     create: {
       name: 'Demo BusinessOS',
       slug: 'demo-businessos',
-      niche: Niche.SERVICES,
+      niche: Niche.PROFESSIONAL_SERVICES,
       plan: Plan.PRO,
       settings: JSON.stringify({ currency: 'BRL', timezone: 'America/Sao_Paulo' }),
     },

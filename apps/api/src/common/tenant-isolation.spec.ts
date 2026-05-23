@@ -69,7 +69,7 @@ describe('Tenant Isolation', () => {
 
   describe('Read Operations', () => {
     it('should inject organizationId into findMany where clause', async () => {
-      const params = { model: 'Product', action: 'findMany', args: { where: {} } };
+      const params: any = { model: 'Product', action: 'findMany', args: { where: {} } };
       await runWithOrg('org-123', params);
 
       expect(next).toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe('Tenant Isolation', () => {
     });
 
     it('should inject organizationId into findFirst where clause', async () => {
-      const params = { model: 'Customer', action: 'findFirst', args: { where: { email: 'test@test.com' } } };
+      const params: any = { model: 'Customer', action: 'findFirst', args: { where: { email: 'test@test.com' } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-123');
@@ -85,28 +85,28 @@ describe('Tenant Isolation', () => {
     });
 
     it('should inject organizationId into count where clause', async () => {
-      const params = { model: 'Transaction', action: 'count', args: { where: {} } };
+      const params: any = { model: 'Transaction', action: 'count', args: { where: {} } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-123');
     });
 
     it('should inject organizationId into aggregate where clause', async () => {
-      const params = { model: 'Transaction', action: 'aggregate', args: { where: {} } };
+      const params: any = { model: 'Transaction', action: 'aggregate', args: { where: {} } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-123');
     });
 
     it('should NOT override organizationId if already set in where clause', async () => {
-      const params = { model: 'Product', action: 'findMany', args: { where: { organizationId: 'org-456' } } };
+      const params: any = { model: 'Product', action: 'findMany', args: { where: { organizationId: 'org-456' } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-456');
     });
 
     it('should NOT inject organizationId for non-tenant models', async () => {
-      const params = { model: 'Organization', action: 'findMany', args: { where: {} } };
+      const params: any = { model: 'Organization', action: 'findMany', args: { where: {} } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBeUndefined();
@@ -115,7 +115,7 @@ describe('Tenant Isolation', () => {
 
   describe('Write Operations', () => {
     it('should inject organizationId into create data', async () => {
-      const params = { model: 'Product', action: 'create', args: { data: { name: 'New Product' } } };
+      const params: any = { model: 'Product', action: 'create', args: { data: { name: 'New Product' } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.data.organizationId).toBe('org-123');
@@ -123,14 +123,14 @@ describe('Tenant Isolation', () => {
     });
 
     it('should NOT override organizationId if already set in create data', async () => {
-      const params = { model: 'Product', action: 'create', args: { data: { name: 'New Product', organizationId: 'org-456' } } };
+      const params: any = { model: 'Product', action: 'create', args: { data: { name: 'New Product', organizationId: 'org-456' } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.data.organizationId).toBe('org-456');
     });
 
     it('should inject organizationId into updateMany where clause', async () => {
-      const params = { model: 'Product', action: 'updateMany', args: { where: { category: 'Electronics' }, data: { salePrice: 100 } } };
+      const params: any = { model: 'Product', action: 'updateMany', args: { where: { category: 'Electronics' }, data: { salePrice: 100 } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-123');
@@ -138,14 +138,14 @@ describe('Tenant Isolation', () => {
     });
 
     it('should inject organizationId into deleteMany where clause', async () => {
-      const params = { model: 'Customer', action: 'deleteMany', args: { where: { active: false } } };
+      const params: any = { model: 'Customer', action: 'deleteMany', args: { where: { active: false } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.where.organizationId).toBe('org-123');
     });
 
     it('should NOT inject organizationId into create for Organization model', async () => {
-      const params = { model: 'Organization', action: 'create', args: { data: { name: 'New Org' } } };
+      const params: any = { model: 'Organization', action: 'create', args: { data: { name: 'New Org' } } };
       await runWithOrg('org-123', params);
 
       expect(params.args.data.organizationId).toBeUndefined();
@@ -154,7 +154,7 @@ describe('Tenant Isolation', () => {
 
   describe('No Tenant Context', () => {
     it('should pass through without modification when no tenant context is set', async () => {
-      const params = { model: 'Product', action: 'findMany', args: { where: {} } };
+      const params: any = { model: 'Product', action: 'findMany', args: { where: {} } };
       // Run outside tenant context
       await middlewareFn(params, next);
 
@@ -166,7 +166,7 @@ describe('Tenant Isolation', () => {
   describe('Tenant Models Coverage', () => {
     it('should scope all tenant models on read', async () => {
       for (const model of TENANT_MODELS) {
-        const params = { model, action: 'findMany', args: { where: {} } };
+        const params: any = { model, action: 'findMany', args: { where: {} } };
         const localNext = vi.fn().mockResolvedValue([]);
         await runWithOrg('org-123', params);
 
@@ -177,7 +177,7 @@ describe('Tenant Isolation', () => {
     it('should scope all tenant models on create', async () => {
       for (const model of TENANT_MODELS) {
         if (model === 'Organization') continue; // Organization is excluded from create injection
-        const params = { model, action: 'create', args: { data: { name: 'test' } } };
+        const params: any = { model, action: 'create', args: { data: { name: 'test' } } };
         await runWithOrg('org-123', params);
 
         expect(params.args.data.organizationId).toBe('org-123');
@@ -188,11 +188,11 @@ describe('Tenant Isolation', () => {
   describe('Cross-Tenant Isolation', () => {
     it('should produce different where clauses for different org contexts', async () => {
       // Org A
-      const paramsA = { model: 'Product', action: 'findMany', args: { where: {} } };
+      const paramsA: any = { model: 'Product', action: 'findMany', args: { where: {} } };
       await runWithOrg('org-AAA', paramsA);
 
       // Org B
-      const paramsB = { model: 'Product', action: 'findMany', args: { where: {} } };
+      const paramsB: any = { model: 'Product', action: 'findMany', args: { where: {} } };
       await runWithOrg('org-BBB', paramsB);
 
       expect(paramsA.args.where.organizationId).toBe('org-AAA');
@@ -202,7 +202,7 @@ describe('Tenant Isolation', () => {
 
     it('should prevent Org A from accessing Org B data via where clause', async () => {
       // Simulate Org A trying to query with Org B's ID
-      const params = { model: 'Product', action: 'findMany', args: { where: { organizationId: 'org-BBB' } } };
+      const params: any = { model: 'Product', action: 'findMany', args: { where: { organizationId: 'org-BBB' } } };
       await runWithOrg('org-AAA', params);
 
       // The middleware should NOT override an explicitly set organizationId
