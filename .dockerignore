@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.git
+*.md
+.env
+.env.local
+docker-compose*.yml
+.DS_Store
+Thumbs.db

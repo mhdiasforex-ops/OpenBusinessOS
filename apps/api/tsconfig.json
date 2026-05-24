@@ -4,6 +4,7 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
+    "useDefineForClassFields": false,
     "outDir": "./dist",
     "rootDir": "./src",
     "emitDecoratorMetadata": true,

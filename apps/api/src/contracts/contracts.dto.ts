@@ -113,3 +113,40 @@ export class UpdateContractDto {
   @IsObject()
   metadata?: Record<string, any>;
 }
+
+// ──────────────────────────────────────────────
+// Filters (query params)
+// ──────────────────────────────────────────────
+
+export class ContractFiltersDto {
+  @ApiPropertyOptional({ description: 'Buscar por título ou descrição', example: 'consultoria' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por status',
+    enum: ContractStatusValues,
+    example: 'ACTIVE',
+  })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por tipo',
+    enum: ContractTypeValues,
+    example: 'SERVICE',
+  })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ description: 'Página (começa em 1)', example: 1, default: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiPropertyOptional({ description: 'Itens por página', example: 25, default: 25 })
+  @IsOptional()
+  perPage?: number;
+}

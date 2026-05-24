@@ -32,20 +32,21 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 
-  /**
-   * Check if user has a specific permission.
-   * "manage" implies "read" — if user has "resource:manage",
-   * they also have "resource:read".
-   */
-  private hasPermission(userPermissions: string[], required: string): boolean {
-    if (userPermissions.includes(required)) return true;
+ /**
+  * Check if user has a specific permission.
+  * "manage" implies all actions — if user has "resource:manage",
+  * they also have "resource:create", "resource:read", "resource:update",
+  * "resource:delete", "resource:execute", etc.
+  */
+ private hasPermission(userPermissions: string[], required: string): boolean {
+  if (userPermissions.includes(required)) return true;
 
-    // If required is "resource:read", check if user has "resource:manage"
-    const [resource, action] = required.split(':');
-    if (action === 'read' && userPermissions.includes(`${resource}:manage`)) {
-      return true;
-    }
-
-    return false;
+  // If user has "resource:manage", they have all actions for that resource
+  const [resource, action] = required.split(':');
+  if (action !== 'manage' && userPermissions.includes(`${resource}:manage`)) {
+   return true;
   }
+
+  return false;
+ }
 }

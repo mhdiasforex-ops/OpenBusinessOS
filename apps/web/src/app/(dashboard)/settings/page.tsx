@@ -341,6 +341,7 @@ function MembrosTab() {
       </CardHeader>
       <CardContent>
         {members && members.length > 0 ? (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -386,6 +387,7 @@ function MembrosTab() {
               ))}
             </TableBody>
           </Table>
+          </div>
         ) : (
           <p className="text-center text-muted-foreground py-8">
             Nenhum membro encontrado.

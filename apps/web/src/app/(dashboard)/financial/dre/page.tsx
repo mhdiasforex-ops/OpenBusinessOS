@@ -1,6 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -373,6 +372,7 @@ export default function DREPage() {
                   <CardTitle>DRE — {periodLabel}</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -483,6 +483,7 @@ export default function DREPage() {
                       </TableRow>
                     </TableBody>
                   </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -499,6 +500,7 @@ export default function DREPage() {
                       Nenhum dado comparativo disponível.
                     </p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -577,6 +579,7 @@ export default function DREPage() {
                         </TableRow>
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

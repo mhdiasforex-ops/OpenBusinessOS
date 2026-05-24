@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const navItems = [
   { label: 'Painel', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -42,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: session, status } = useSession();
   const router = useRouter();
   const populated = useRef(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -68,11 +69,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (status !== 'authenticated') return null;
 
   return (
-    <div className="flex h-screen">
-      <Sidebar items={navItems} organizationName={user?.organizationName || session ? ((session as any).organizationName || '') : ''} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header userName={user?.name || session?.user?.name || ''} userRole={user?.role || ''} />
-        <main className="flex-1 overflow-y-auto p-6 bg-muted/50">{children}</main>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar
+        items={navItems}
+        organizationName={user?.organizationName || session ? ((session as any).organizationName || '') : ''}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <Header userName={user?.name || session?.user?.name || ''} userRole={user?.role || ''} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-muted/50">{children}</main>
       </div>
     </div>
   );

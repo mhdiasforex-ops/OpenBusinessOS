@@ -1,11 +1,12 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableHeader,
@@ -20,21 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
 import { useState, useMemo } from 'react';
-import { ShieldCheck, Users, CheckCircle, AlertTriangle, Clock, Plus } from 'lucide-react';
-
-// ── Mock data ────────────────────────────────────────────────────
-
-const mockRegistros = [
-  { id: '1', profissional: 'Dra. Maria Silva', conselho: 'CRM', registro: '12345-SP', status: 'ATIVO', validade: '2027-12-31' },
-  { id: '2', profissional: 'Dr. João Santos', conselho: 'CRO', registro: '67890-RJ', status: 'ATIVO', validade: '2027-06-30' },
-  { id: '3', profissional: 'Dra. Ana Costa', conselho: 'CRF', registro: '54321-MG', status: 'PENDENTE', validade: '2026-08-15' },
-  { id: '4', profissional: 'Dr. Pedro Oliveira', conselho: 'CRM', registro: '98765-BA', status: 'EXPIRANDO', validade: '2026-06-30' },
-  { id: '5', profissional: 'Dra. Carla Mendes', conselho: 'CRO', registro: '13579-SP', status: 'ATIVO', validade: '2028-03-20' },
-  { id: '6', profissional: 'Dr. Lucas Ferreira', conselho: 'CRP', registro: '24680-PR', status: 'EXPIRANDO', validade: '2026-07-10' },
-  { id: '7', profissional: 'Dra. Beatriz Lima', conselho: 'CRM', registro: '11223-RS', status: 'ATIVO', validade: '2028-01-15' },
-  { id: '8', profissional: 'Dr. Rafael Almeida', conselho: 'CRF', registro: '44556-PE', status: 'PENDENTE', validade: '2026-09-01' },
-];
+import { ShieldCheck, Users, CheckCircle, AlertTriangle, Clock, Plus, Loader2, Trash2 } from 'lucide-react';
+import { formatDate } from '@openbusinessos/utils';
 
 // ── Status badge helpers ─────────────────────────────────────────
 
@@ -70,23 +61,73 @@ const statusOptions = [
 // ── Page component ───────────────────────────────────────────────
 
 export default function CompliancePage() {
+  const queryClient = useQueryClient();
   const [conselhoFilter, setConselhoFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({
+    profissional: '',
+    conselho: 'CRM',
+    registro: '',
+    validade: '',
+  });
+
+  // ── Queries ──────────────────────────────────────────────────────
+
+  const { data: registros, isLoading } = useQuery({
+    queryKey: ['compliance'],
+    queryFn: () => api.get('/compliance'),
+  });
+
+  // ── Mutations ────────────────────────────────────────────────────
+
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.post('/compliance', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
+      setDialogOpen(false);
+      setForm({ profissional: '', conselho: 'CRM', registro: '', validade: '' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/compliance/records/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
 
   // ── Derived data ────────────────────────────────────────────────
 
-  const filtered = useMemo(() => {
-    let list = mockRegistros;
-    if (conselhoFilter) list = list.filter((r) => r.conselho === conselhoFilter);
-    if (statusFilter) list = list.filter((r) => r.status === statusFilter);
-    return list;
-  }, [conselhoFilter, statusFilter]);
+  const allRegistros = useMemo(() => {
+    const raw = (registros as any)?.data ?? registros ?? [];
+    if (!Array.isArray(raw)) return [];
+    return raw;
+  }, [registros]);
 
-  const totalRegistros = mockRegistros.length;
-  const ativos = mockRegistros.filter((r) => r.status === 'ATIVO').length;
-  const pendentes = mockRegistros.filter((r) => r.status === 'PENDENTE').length;
-  const expirando = mockRegistros.filter((r) => r.status === 'EXPIRANDO').length;
+  const filtered = useMemo(() => {
+    let list = allRegistros;
+    if (conselhoFilter) list = list.filter((r: any) => r.conselho === conselhoFilter);
+    if (statusFilter) list = list.filter((r: any) => r.status === statusFilter);
+    return list;
+  }, [allRegistros, conselhoFilter, statusFilter]);
+
+  const totalRegistros = allRegistros.length;
+  const ativos = allRegistros.filter((r: any) => r.status === 'ATIVO').length;
+  const pendentes = allRegistros.filter((r: any) => r.status === 'PENDENTE').length;
+  const expirando = allRegistros.filter((r: any) => r.status === 'EXPIRANDO').length;
+
+  // ── Handlers ──────────────────────────────────────────────────────
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({
+      profissional: form.profissional,
+      conselho: form.conselho,
+      registro: form.registro,
+      validade: form.validade,
+    });
+  };
 
   // ── Render ──────────────────────────────────────────────────────
 
@@ -95,7 +136,7 @@ export default function CompliancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Compliance</h1>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => { setForm({ profissional: '', conselho: 'CRM', registro: '', validade: '' }); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Registro
         </Button>
@@ -176,54 +217,133 @@ export default function CompliancePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Profissional</TableHead>
-                <TableHead>Conselho</TableHead>
-                <TableHead>Registro</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Validade</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.profissional}</TableCell>
-                  <TableCell>{r.conselho}</TableCell>
-                  <TableCell>{r.registro}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[r.status] || 'outline'}>
-                      {statusLabel[r.status] || r.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(r.validade).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+              <span className="text-muted-foreground">Carregando registros...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Nenhum registro encontrado
-                  </TableCell>
+                  <TableHead>Profissional</TableHead>
+                  <TableHead>Conselho</TableHead>
+                  <TableHead>Registro</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Validade</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((r: any) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.profissional}</TableCell>
+                    <TableCell>{r.conselho}</TableCell>
+                    <TableCell>{r.registro}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[r.status] || 'outline'}>
+                        {statusLabel[r.status] || r.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{r.validade ? formatDate(r.validade) : '-'}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm(`Excluir registro de ${r.profissional}?`)) {
+                            deleteMutation.mutate(r.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      Nenhum registro encontrado
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* ── Novo Registro Dialog (placeholder) ────────────────────── */}
+      {/* ── Novo Registro Dialog ──────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Registro</DialogTitle>
           </DialogHeader>
-          <div className="py-6 text-center text-muted-foreground">
-            <ShieldCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Formulário de novo registro será implementado aqui.</p>
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="c-profissional">Profissional</Label>
+              <Input
+                id="c-profissional"
+                placeholder="Nome do profissional"
+                value={form.profissional}
+                onChange={(e) => setForm({ ...form, profissional: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="c-conselho">Conselho</Label>
+                <Select
+                  id="c-conselho"
+                  options={conselhoOptions.filter((o) => o.value !== '')}
+                  value={form.conselho}
+                  onChange={(e) => setForm({ ...form, conselho: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="c-registro">Nº Registro</Label>
+                <Input
+                  id="c-registro"
+                  placeholder="Ex: 12345-SP"
+                  value={form.registro}
+                  onChange={(e) => setForm({ ...form, registro: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="c-validade">Validade</Label>
+              <Input
+                id="c-validade"
+                type="date"
+                value={form.validade}
+                onChange={(e) => setForm({ ...form, validade: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar Registro'
+                )}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

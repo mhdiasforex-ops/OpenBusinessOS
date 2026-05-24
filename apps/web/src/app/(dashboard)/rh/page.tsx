@@ -1,17 +1,23 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@openbusinessos/utils';
 import { useState, useMemo } from 'react';
-import { Users, UserCheck, Clock, CalendarCheck, Search, Plus, Eye, Edit } from 'lucide-react';
+import { Users, UserCheck, Clock, CalendarCheck, Search, Plus, Eye, Edit, Loader2, X, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos os Status' },
@@ -45,10 +51,18 @@ const DEPARTMENTS = [
   { value: 'Operações', label: 'Operações' },
 ];
 
+const INITIAL_FORM = { name: '', email: '', document: '', position: '', department: '', salary: '', hireDate: '' };
+const INITIAL_CREATE_FORM = { name: '', email: '', document: '', position: '', department: '', salary: 0, hireDate: '' };
+
 export default function RhPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(INITIAL_CREATE_FORM);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState(INITIAL_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: dashboard, isLoading: dashLoading } = useQuery({
@@ -60,6 +74,45 @@ export default function RhPage() {
     queryKey: ['rh-employees'],
     queryFn: () => api.get('/rh/employees'),
   });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof form) => api.post('/rh/employees', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rh-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['rh-dashboard'] });
+      setDialogOpen(false);
+      setForm(INITIAL_CREATE_FORM);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/rh/employees/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rh-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['rh-dashboard'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.patch(`/rh/employees/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rh-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['rh-dashboard'] });
+      setEditDialogOpen(false);
+      setEditingId(null);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate(form);
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir "${name}"?`)) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   const dash = useMemo(() => {
     const raw = (dashboard as any)?.data ?? dashboard ?? {};
@@ -103,11 +156,61 @@ export default function RhPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">RH — Recursos Humanos</h1>
-        <Button>
+        <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Colaborador
         </Button>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Novo Colaborador</DialogTitle>
+            <Button type="button" variant="ghost" size="icon" className="absolute right-4 top-4" onClick={() => setDialogOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="document">Documento</Label>
+                <Input id="document" value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="position">Cargo</Label>
+                <Input id="position" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Departamento</Label>
+                <Input id="department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salary">Salário</Label>
+                <Input id="salary" type="number" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hireDate">Data de Admissão</Label>
+                <Input id="hireDate" type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -205,6 +308,7 @@ export default function RhPage() {
               Nenhum colaborador encontrado
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -236,11 +340,14 @@ export default function RhPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" title="Ver detalhes">
+                        <Button variant="ghost" size="sm" title="Ver detalhes" onClick={() => { setEditingId(emp.id); setEditForm({ name: emp.name, email: emp.email, document: emp.document || '', position: emp.position || '', department: emp.department || '', salary: String(emp.salary || ''), hireDate: emp.hireDate ? emp.hireDate.slice(0, 10) : '' }); setEditDialogOpen(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" title="Editar">
+                        <Button variant="ghost" size="sm" title="Editar" onClick={() => { setEditingId(emp.id); setEditForm({ name: emp.name, email: emp.email, document: emp.document || '', position: emp.position || '', department: emp.department || '', salary: String(emp.salary || ''), hireDate: emp.hireDate ? emp.hireDate.slice(0, 10) : '' }); setEditDialogOpen(true); }}>
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" title="Excluir" onClick={() => handleDelete(emp.id, emp.name)}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -248,9 +355,58 @@ export default function RhPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Colaborador</DialogTitle>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setEditDialogOpen(false)}><X className="h-4 w-4" /></Button>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (editingId) updateMutation.mutate({ id: editingId, data: { ...editForm, salary: parseFloat(editForm.salary as any) || 0 } }); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="e-name">Nome</Label>
+              <Input id="e-name" value={(editForm as any).name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="e-email">Email</Label>
+                <Input id="e-email" type="email" value={(editForm as any).email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="e-document">Documento</Label>
+                <Input id="e-document" value={(editForm as any).document} onChange={(e) => setEditForm({ ...editForm, document: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="e-position">Cargo</Label>
+                <Input id="e-position" value={(editForm as any).position} onChange={(e) => setEditForm({ ...editForm, position: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="e-department">Departamento</Label>
+                <Input id="e-department" value={(editForm as any).department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="e-salary">Salario</Label>
+                <Input id="e-salary" type="number" step="0.01" value={(editForm as any).salary} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="e-hireDate">Data de Admissao</Label>
+                <Input id="e-hireDate" type="date" value={(editForm as any).hireDate} onChange={(e) => setEditForm({ ...editForm, hireDate: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</>) : 'Salvar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

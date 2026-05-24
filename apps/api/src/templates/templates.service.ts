@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto } from './templates.dto';
 
@@ -8,21 +8,51 @@ export class TemplatesService {
 
   constructor(private prisma: PrismaService) {}
 
-  async getTemplatesByNiche(niche: string) {
-    const templates = await this.prisma.template.findMany({
-      where: { niche: niche as any, isActive: true },
-      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-    });
-    return templates;
-  }
+ private readonly VALID_NICHES = [
+ 'RETAIL', 'ECOMMERCE', 'FOOD_SERVICE', 'PROFESSIONAL_SERVICES',
+ 'HEALTH_CARE', 'EDUCATION', 'CONSTRUCTION', 'BEAUTY',
+ 'FITNESS', 'LEGAL', 'ACCOUNTING', 'TECH_SERVICES',
+ 'REAL_ESTATE', 'AUTOMOTIVE', 'AGRICULTURE', 'OTHER',
+ ];
+ private readonly VALID_TYPES = [
+ 'ONBOARDING', 'WORKFLOW', 'DASHBOARD', 'EMAIL',
+ 'REPORT', 'INVOICE', 'PRODUCT_CATALOG', 'NICHE_SPECIFIC',
+ ];
 
-  async getTemplatesByNicheAndType(niche: string, type: string) {
-    const templates = await this.prisma.template.findMany({
-      where: { niche: niche as any, type: type as any, isActive: true },
-      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-    });
-    return templates;
-  }
+ private validateNiche(niche: string) {
+ if (!this.VALID_NICHES.includes(niche)) {
+ throw new BadRequestException(
+ `Nicho inválido: "${niche}". Valores aceitos: ${this.VALID_NICHES.join(', ')}`,
+ );
+ }
+ }
+
+ private validateType(type: string) {
+ if (!this.VALID_TYPES.includes(type)) {
+ throw new BadRequestException(
+ `Tipo inválido: "${type}". Valores aceitos: ${this.VALID_TYPES.join(', ')}`,
+ );
+ }
+ }
+
+ async getTemplatesByNiche(niche: string) {
+ this.validateNiche(niche);
+ const templates = await this.prisma.template.findMany({
+ where: { niche: niche as any, isActive: true },
+ orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+ });
+ return templates;
+ }
+
+ async getTemplatesByNicheAndType(niche: string, type: string) {
+ this.validateNiche(niche);
+ this.validateType(type);
+ const templates = await this.prisma.template.findMany({
+ where: { niche: niche as any, type: type as any, isActive: true },
+ orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+ });
+ return templates;
+ }
 
   async createTemplate(orgId: string, dto: CreateTemplateDto) {
     const template = await this.prisma.template.create({

@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyticsService } from './analytics.service';
-import { MetricsService } from './metrics.service';
-import { CrossModuleService } from './cross-module.service';
-import { AnomalyDetectorService } from './anomaly-detector.service';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
@@ -50,6 +47,13 @@ describe('AnalyticsService', () => {
       expect(metricsService.getMetrics).toHaveBeenCalledWith(orgId);
       expect(result).toEqual(mockResult);
     });
+
+    it('should propagate errors from metricsService', async () => {
+      const error = new Error('Metrics service failed');
+      metricsService.getMetrics.mockRejectedValue(error);
+
+      await expect(service.getMetrics(orgId)).rejects.toThrow('Metrics service failed');
+    });
   });
 
   describe('getRevenueTimeSeries', () => {
@@ -69,6 +73,12 @@ describe('AnalyticsService', () => {
       await service.getRevenueTimeSeries(orgId, 6);
 
       expect(metricsService.getRevenueTimeSeries).toHaveBeenCalledWith(orgId, 6);
+    });
+
+    it('should propagate errors from metricsService', async () => {
+      metricsService.getRevenueTimeSeries.mockRejectedValue(new Error('Time series failed'));
+
+      await expect(service.getRevenueTimeSeries(orgId)).rejects.toThrow('Time series failed');
     });
   });
 
@@ -90,6 +100,12 @@ describe('AnalyticsService', () => {
 
       expect(metricsService.getCategoryBreakdown).toHaveBeenCalledWith(orgId, 'EXPENSE', 6);
     });
+
+    it('should propagate errors from metricsService', async () => {
+      metricsService.getCategoryBreakdown.mockRejectedValue(new Error('Breakdown failed'));
+
+      await expect(service.getCategoryBreakdown(orgId, 'INCOME')).rejects.toThrow('Breakdown failed');
+    });
   });
 
   describe('getCustomerSegments', () => {
@@ -101,6 +117,12 @@ describe('AnalyticsService', () => {
 
       expect(crossModuleService.getCustomerSegments).toHaveBeenCalledWith(orgId);
       expect(result).toEqual(mockSegments);
+    });
+
+    it('should propagate errors from crossModuleService', async () => {
+      crossModuleService.getCustomerSegments.mockRejectedValue(new Error('Segments failed'));
+
+      await expect(service.getCustomerSegments(orgId)).rejects.toThrow('Segments failed');
     });
   });
 
@@ -122,6 +144,12 @@ describe('AnalyticsService', () => {
 
       expect(crossModuleService.getProductPerformance).toHaveBeenCalledWith(orgId, 5);
     });
+
+    it('should propagate errors from crossModuleService', async () => {
+      crossModuleService.getProductPerformance.mockRejectedValue(new Error('Performance failed'));
+
+      await expect(service.getProductPerformance(orgId)).rejects.toThrow('Performance failed');
+    });
   });
 
   describe('detectAnomalies', () => {
@@ -133,6 +161,12 @@ describe('AnalyticsService', () => {
 
       expect(anomalyDetectorService.detectAnomalies).toHaveBeenCalledWith(orgId);
       expect(result).toEqual(mockAnomalies);
+    });
+
+    it('should propagate errors from anomalyDetectorService', async () => {
+      anomalyDetectorService.detectAnomalies.mockRejectedValue(new Error('Anomaly detection failed'));
+
+      await expect(service.detectAnomalies(orgId)).rejects.toThrow('Anomaly detection failed');
     });
   });
 
@@ -153,6 +187,14 @@ describe('AnalyticsService', () => {
         orderBy: { isDefault: 'desc' },
       });
       expect(result).toEqual(mockDashboards);
+    });
+
+    it('should return empty array when no dashboards exist', async () => {
+      prisma.dashboard.findMany.mockResolvedValue([]);
+
+      const result = await service.getDashboards(orgId);
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -179,6 +221,24 @@ describe('AnalyticsService', () => {
       expect(prisma.dashboard.create).toHaveBeenCalledWith({
         data: { organizationId: orgId, name: 'Dashboard', layout, isDefault: false },
       });
+    });
+
+    it('should create a dashboard with empty layout', async () => {
+      prisma.dashboard.create.mockResolvedValue({ id: 'd-new' });
+
+      await service.createDashboard(orgId, 'Empty Layout', {});
+
+      expect(prisma.dashboard.create).toHaveBeenCalledWith({
+        data: { organizationId: orgId, name: 'Empty Layout', layout: {}, isDefault: false },
+      });
+    });
+
+    it('should propagate prisma errors', async () => {
+      prisma.dashboard.create.mockRejectedValue(new Error('Database error'));
+
+      await expect(
+        service.createDashboard(orgId, 'Fail', {}, false),
+      ).rejects.toThrow('Database error');
     });
   });
 
@@ -207,6 +267,15 @@ describe('AnalyticsService', () => {
         data: { isDefault: true },
       });
     });
+
+    it('should propagate prisma not found error', async () => {
+      const error = new Error('Record to update not found');
+      prisma.dashboard.update.mockRejectedValue(error);
+
+      await expect(
+        service.updateDashboard(orgId, 'nonexistent', { name: 'Nope' }),
+      ).rejects.toThrow('Record to update not found');
+    });
   });
 
   describe('deleteDashboard', () => {
@@ -217,6 +286,15 @@ describe('AnalyticsService', () => {
 
       expect(prisma.dashboard.delete).toHaveBeenCalledWith({ where: { id: 'd1' } });
       expect(result).toEqual({ id: 'd1' });
+    });
+
+    it('should propagate prisma not found error on delete', async () => {
+      const error = new Error('Record to delete does not exist');
+      prisma.dashboard.delete.mockRejectedValue(error);
+
+      await expect(
+        service.deleteDashboard(orgId, 'nonexistent'),
+      ).rejects.toThrow('Record to delete does not exist');
     });
   });
 });

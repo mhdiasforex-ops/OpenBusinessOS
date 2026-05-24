@@ -1,6 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +9,39 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useState, useMemo } from 'react';
-import { BarChart3, Search, Plus, FileText, Play, Clock, Settings, ToggleLeft } from 'lucide-react';
+import { BarChart3, Search, Plus, FileText, Play, Clock, Settings, ToggleLeft, Loader2, X, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+
+const FORMATS = [
+  { value: 'PDF', label: 'PDF' },
+  { value: 'XLSX', label: 'Excel' },
+  { value: 'CSV', label: 'CSV' },
+  { value: 'JSON', label: 'JSON' },
+];
+
+const SCHEDULES = [
+  { value: 'ONCE', label: 'Único' },
+  { value: 'DAILY', label: 'Diário' },
+  { value: 'WEEKLY', label: 'Semanal' },
+  { value: 'MONTHLY', label: 'Mensal' },
+  { value: 'QUARTERLY', label: 'Trimestral' },
+  { value: 'YEARLY', label: 'Anual' },
+];
+
+const INITIAL_FORM = { name: '', type: '', format: 'PDF', schedule: 'ONCE' };
 
 export default function ReportsPage() {
   const [tab, setTab] = useState<'reports' | 'types' | 'scheduled'>('reports');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(INITIAL_FORM);
   const queryClient = useQueryClient();
 
   const { data: reports, isLoading: loadingReports } = useQuery({
@@ -37,6 +63,31 @@ export default function ReportsPage() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => api.put(`/reports/${id}/toggle-active`, { isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports'] }),
   });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof form) => api.post('/reports', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setDialogOpen(false);
+      setForm(INITIAL_FORM);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/reports/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports'] }),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate(form);
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir "${name}"?`)) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   const allReports = useMemo(() => {
     const raw = (reports as any)?.items ?? (reports as any)?.data ?? reports ?? [];
@@ -109,8 +160,51 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Relatorios</h1>
-        <Button><Plus className="h-4 w-4 mr-2" />Novo Relatorio</Button>
+        <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Novo Relatorio</Button>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Novo Relatório</DialogTitle>
+            <Button type="button" variant="ghost" size="icon" className="absolute right-4 top-4" onClick={() => setDialogOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Tipo</Label>
+              <select id="type" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} required>
+                <option value="">Selecione um tipo</option>
+                {allTypes.map((t: any) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="format">Formato</Label>
+              <select id="format" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} required>
+                {FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="schedule">Agendamento</Label>
+              <select id="schedule" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} required>
+                {SCHEDULES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -178,6 +272,7 @@ export default function ReportsPage() {
           <CardHeader><CardTitle>Relatorios</CardTitle></CardHeader>
           <CardContent>
             {loadingReports ? <p className="text-muted-foreground">Carregando...</p> : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -209,6 +304,9 @@ export default function ReportsPage() {
                           <Button size="sm" variant="ghost" onClick={() => toggleMutation.mutate({ id: r.id, isActive: !r.isActive })}>
                             <ToggleLeft className="h-3 w-3" />
                           </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(r.id, r.name)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -218,6 +316,7 @@ export default function ReportsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -250,6 +349,7 @@ export default function ReportsPage() {
             {scheduledReports.length === 0 ? (
               <p className="text-muted-foreground text-center">Nenhum relatorio agendado</p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -283,6 +383,7 @@ export default function ReportsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

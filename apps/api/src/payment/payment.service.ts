@@ -1,6 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Redis } from 'ioredis';
 import {
   PaymentProvider,
   PaymentProviderName,
@@ -12,12 +11,14 @@ import {
 } from './payment.dto';
 import { AsaasProvider } from './providers/asaas.provider';
 import { MercadoPagoProvider } from './providers/mercado-pago.provider';
+import { ManualProvider } from './providers/manual.provider';
 
 // ── Provider Registry ──────────────────────────────────────────────────
 
 const PROVIDER_MAP: Record<string, new (...args: any[]) => PaymentProvider> = {
-  ASAAS: AsaasProvider,
-  MERCADO_PAGO: MercadoPagoProvider,
+ ASAAS: AsaasProvider,
+ MERCADO_PAGO: MercadoPagoProvider,
+ MANUAL: ManualProvider,
 };
 
 @Injectable()
@@ -26,7 +27,6 @@ export class PaymentService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: Redis,
   ) {}
 
   // ── Provider Resolution ────────────────────────────────────────────
@@ -150,6 +150,7 @@ export class PaymentService {
 
   async checkPaymentStatus(orgId: string, id: string) {
     const payment = await this.getPayment(orgId, id);
+    if (!payment.externalId) throw new NotFoundException('Pagamento sem externalId');
     const config = await this.getDefaultConfig(orgId);
     const provider = this.getProviderInstance(config.provider as PaymentProviderName);
 
@@ -168,6 +169,7 @@ export class PaymentService {
 
   async cancelPayment(orgId: string, id: string) {
     const payment = await this.getPayment(orgId, id);
+    if (!payment.externalId) throw new NotFoundException('Pagamento sem externalId');
     const config = await this.getDefaultConfig(orgId);
     const provider = this.getProviderInstance(config.provider as PaymentProviderName);
 
@@ -183,6 +185,7 @@ export class PaymentService {
 
   async refundPayment(orgId: string, id: string) {
     const payment = await this.getPayment(orgId, id);
+    if (!payment.externalId) throw new NotFoundException('Pagamento sem externalId');
     const config = await this.getDefaultConfig(orgId);
     const provider = this.getProviderInstance(config.provider as PaymentProviderName);
 

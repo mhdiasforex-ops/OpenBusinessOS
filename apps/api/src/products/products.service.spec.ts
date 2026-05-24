@@ -131,4 +131,77 @@ describe('ProductsService', () => {
       await expect(service.deleteProduct(orgId, 'prod-999')).rejects.toThrow();
     });
   });
+
+  describe('getProduct', () => {
+    it('should return product with transaction items', async () => {
+      prisma.product.findFirst.mockResolvedValue({
+        id: 'prod-1',
+        name: 'Produto A',
+        sku: 'SKU-001',
+        transactionItems: [{ id: 'ti-1', quantity: 2 }],
+      });
+
+      const result = await service.getProduct(orgId, 'prod-1');
+      expect(result.name).toBe('Produto A');
+      expect(prisma.product.findFirst).toHaveBeenCalledWith({
+        where: { id: 'prod-1', organizationId: orgId },
+        include: { transactionItems: { take: 10, orderBy: { createdAt: 'desc' } } },
+      });
+    });
+
+    it('should throw NotFoundException when product not found', async () => {
+      prisma.product.findFirst.mockResolvedValue(null);
+      await expect(service.getProduct(orgId, 'prod-999')).rejects.toThrow('Produto não encontrado');
+    });
+  });
+
+  describe('adjustStock', () => {
+    it('should increase stock and return new quantity', async () => {
+      prisma.product.findFirst.mockResolvedValue({ id: 'prod-1', name: 'Produto A', sku: 'SKU-001', stockQuantity: 10, minStock: 5, organizationId: orgId });
+      prisma.product.update.mockResolvedValue({ id: 'prod-1', stockQuantity: 20, minStock: 5, name: 'Produto A', sku: 'SKU-001' });
+
+      const result = await service.adjustStock(orgId, 'prod-1', 10, 'reposição');
+      expect(result.stockQuantity).toBe(20);
+      expect(result.adjusted).toBe(10);
+    });
+
+    it('should decrease stock and return new quantity', async () => {
+      prisma.product.findFirst.mockResolvedValue({ id: 'prod-1', name: 'Produto A', sku: 'SKU-001', stockQuantity: 10, minStock: 5, organizationId: orgId });
+      prisma.product.update.mockResolvedValue({ id: 'prod-1', stockQuantity: 7, minStock: 5, name: 'Produto A', sku: 'SKU-001' });
+
+      const result = await service.adjustStock(orgId, 'prod-1', -3, 'venda');
+      expect(result.stockQuantity).toBe(7);
+    });
+
+    it('should throw ConflictException when stock would go negative', async () => {
+      prisma.product.findFirst.mockResolvedValue({ id: 'prod-1', stockQuantity: 3, minStock: 5, organizationId: orgId });
+
+      await expect(service.adjustStock(orgId, 'prod-1', -10, 'perda')).rejects.toThrow('Estoque não pode ficar negativo');
+    });
+
+    it('should throw NotFoundException when product not found', async () => {
+      prisma.product.findFirst.mockResolvedValue(null);
+      await expect(service.adjustStock(orgId, 'prod-999', 5, 'test')).rejects.toThrow('Produto não encontrado');
+    });
+
+    it('should emit STOCK_LOW when stock goes below minimum', async () => {
+      prisma.product.findFirst.mockResolvedValue({ id: 'prod-1', name: 'Produto A', sku: 'SKU-001', stockQuantity: 5, minStock: 5, organizationId: orgId });
+      prisma.product.update.mockResolvedValue({ id: 'prod-1', stockQuantity: 2, minStock: 5, name: 'Produto A', sku: 'SKU-001' });
+
+      await service.adjustStock(orgId, 'prod-1', -3, 'venda');
+      expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'STOCK_LOW',
+        source: 'products-service',
+      }));
+    });
+
+    it('should NOT emit STOCK_LOW when stock is above minimum', async () => {
+      prisma.product.findFirst.mockResolvedValue({ id: 'prod-1', name: 'Produto A', sku: 'SKU-001', stockQuantity: 20, minStock: 5, organizationId: orgId });
+      prisma.product.update.mockResolvedValue({ id: 'prod-1', stockQuantity: 25, minStock: 5, name: 'Produto A', sku: 'SKU-001' });
+
+      await service.adjustStock(orgId, 'prod-1', 5, 'reposição');
+      const emitCalls = eventBus.emit.mock.calls.filter((c: any) => c[0]?.type === 'STOCK_LOW');
+      expect(emitCalls).toHaveLength(0);
+    });
+  });
 });

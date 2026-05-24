@@ -1,8 +1,10 @@
 # ============================================================
-# OpenBusinessOS — Docker Compose (Local Development)
+# OpenBusinessOS — Docker Compose (Full Stack)
 # ============================================================
-# Compatible with Docker Desktop on Windows.
 # Usage: docker compose up -d
+# API: http://localhost:3001/api/v1/docs
+# Web: http://localhost:3000
+# MinIO Console: http://localhost:9001
 # ============================================================
 
 services:
@@ -12,17 +14,17 @@ services:
     container_name: obos-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: openbusinessos
+      POSTGRES_DB: businessos
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - obos-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d openbusinessos"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d businessos"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,7 +36,7 @@ services:
     container_name: obos-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: redis-server --appendonly yes
     volumes:
       - redisdata:/data
@@ -53,8 +55,8 @@ services:
     container_name: obos-minio
     restart: unless-stopped
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # MinIO Console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio123
       MINIO_ROOT_PASSWORD: minio123
@@ -69,6 +71,57 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # --- API (NestJS) ---
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: obos-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/businessos
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-me-in-production-use-random-string
+      JWT_EXPIRES_IN: 24h
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - obos-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3001/api/v1/docs-json || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # --- Web (Next.js) ---
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    container_name: obos-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXTAUTH_SECRET: a8ce570cb108f5ed8a845fbb1caf4f2273b1b59839d51b22388ef76d77efdce4
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_API_URL_INTERNAL: http://api:3001/api/v1
+    depends_on:
+      - api
+    networks:
+      - obos-network
 
 networks:
   obos-network:

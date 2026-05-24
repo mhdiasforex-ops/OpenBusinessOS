@@ -134,9 +134,9 @@ export class InventoryService {
     // Use $queryRaw for this
     return this.prisma.$queryRaw`
       SELECT * FROM products
-      WHERE organization_id = ${orgId}
-        AND is_active = true
-        AND stock_quantity <= min_stock
+      WHERE "organizationId" = ${orgId}
+      AND is_active = true
+      AND stock_quantity <= min_stock
       ORDER BY stock_quantity ASC
     `;
   }

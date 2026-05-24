@@ -1,6 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@openbusinessos/utils';
-import { FileText, ShoppingCart, Receipt, BarChart3, Loader2, Plus, Download, Calculator, Send } from 'lucide-react';
+import { FileText, ShoppingCart, Receipt, BarChart3, Loader2, Plus, Download, Calculator, Send, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,6 +83,16 @@ export default function FiscalPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fiscal-nfse'] }); queryClient.invalidateQueries({ queryKey: ['fiscal-stats'] }); },
   });
 
+  const cancelNfeMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/fiscal/nfe/${id}/cancelar`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fiscal-nfe'] }); queryClient.invalidateQueries({ queryKey: ['fiscal-stats'] }); },
+  });
+
+  const cancelNfseMutation = useMutation({
+    mutationFn: (numero: string) => api.post(`/fiscal/nfse/${numero}/cancelar`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fiscal-nfse'] }); queryClient.invalidateQueries({ queryKey: ['fiscal-stats'] }); },
+  });
+
   const generateSpedMutation = useMutation({
     mutationFn: (data: any) => api.post('/fiscal/sped/generate', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fiscal-sped'] }),
@@ -106,7 +115,7 @@ export default function FiscalPage() {
     { key: 'icms' as const, label: 'ICMS', icon: Calculator },
   ];
 
-  const renderDocTable = (docs: NfeDoc[], loading: boolean) => {
+  const renderDocTable = (docs: NfeDoc[], loading: boolean, cancelMutation?: { mutate: (id: string) => void, isPending: boolean }) => {
     if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
     if (!docs?.length) return <p className="text-muted-foreground text-center py-8">Nenhum documento encontrado</p>;
     return (
@@ -117,9 +126,25 @@ export default function FiscalPage() {
               <p className="text-sm font-medium">NF {doc.numero}</p>
               <p className="text-xs text-muted-foreground">{doc.destinatario}</p>
             </div>
-            <div className="text-right space-y-1">
-              <p className="text-sm font-medium">{formatCurrency(doc.valor)}</p>
-              <Badge variant={statusColor[doc.status] || 'outline'}>{doc.status}</Badge>
+            <div className="flex items-center gap-3">
+              <div className="text-right space-y-1">
+                <p className="text-sm font-medium">{formatCurrency(doc.valor)}</p>
+                <Badge variant={statusColor[doc.status] || 'outline'}>{doc.status}</Badge>
+              </div>
+              {doc.status !== 'CANCELADA' && cancelMutation && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Cancelar NF ${doc.numero}?`)) {
+                      cancelMutation.mutate(doc.numero);
+                    }
+                  }}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -184,9 +209,9 @@ export default function FiscalPage() {
       {/* Tab Content */}
       <Card>
         <CardContent className="pt-6">
-          {activeTab === 'nfe' && renderDocTable(nfeList || [], !!nfeLoading)}
+          {activeTab === 'nfe' && renderDocTable(nfeList || [], !!nfeLoading, cancelNfeMutation)}
           {activeTab === 'nfce' && renderDocTable(nfceList || [], !!nfceLoading)}
-          {activeTab === 'nfse' && renderDocTable(nfseList || [], !!nfseLoading)}
+          {activeTab === 'nfse' && renderDocTable(nfseList || [], !!nfseLoading, cancelNfseMutation)}
           {activeTab === 'sped' && (
             <div className="space-y-4">
               <div className="flex gap-2">

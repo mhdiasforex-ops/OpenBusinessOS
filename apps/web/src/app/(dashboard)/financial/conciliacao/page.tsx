@@ -376,6 +376,7 @@ export default function ConciliacaoPage() {
                   Nenhuma transação pendente encontrada.
                 </p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -447,6 +448,7 @@ export default function ConciliacaoPage() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -466,6 +468,7 @@ export default function ConciliacaoPage() {
                   Nenhuma transação conciliada encontrada.
                 </p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -526,6 +529,7 @@ export default function ConciliacaoPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

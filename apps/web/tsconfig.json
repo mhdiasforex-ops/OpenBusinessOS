@@ -25,9 +25,10 @@
         "../../packages/utils/src"
       ]
     },
-    "noEmit": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true
+  "noEmit": true,
+ "skipLibCheck": true,
+ "esModuleInterop": true,
+ "strictNullChecks": false
   },
   "include": [
     "next-env.d.ts",

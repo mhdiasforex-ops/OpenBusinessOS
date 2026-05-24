@@ -31,6 +31,9 @@ export const EventTypes = {
  APPOINTMENT_CONFIRMED: 'APPOINTMENT_CONFIRMED',
  APPOINTMENT_CANCELLED: 'APPOINTMENT_CANCELLED',
  REPORT_EXECUTED: 'REPORT_EXECUTED',
+ SUPPLIER_CREATED: 'SUPPLIER_CREATED',
+ SUPPLIER_UPDATED: 'SUPPLIER_UPDATED',
+ SUPPLIER_DEACTIVATED: 'SUPPLIER_DEACTIVATED',
 } as const;
 
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];
@@ -188,6 +191,27 @@ export interface QuoteConvertedPayload {
  previousType: string;
 }
 
+export interface SupplierCreatedPayload {
+ supplierId: string;
+ organizationId: string;
+ name: string;
+ document?: string;
+ email?: string;
+}
+
+export interface SupplierUpdatedPayload {
+ supplierId: string;
+ organizationId: string;
+ changes: Record<string, any>;
+}
+
+export interface SupplierDeactivatedPayload {
+ supplierId: string;
+ organizationId: string;
+ name: string;
+ reason?: string;
+}
+
 // --- Event Map (type-safe lookup) ---
 
 export interface EventPayloadMap {
@@ -211,4 +235,7 @@ export interface EventPayloadMap {
  [EventTypes.ORDER_UPDATED]: OrderUpdatedPayload;
  [EventTypes.ORDER_STATUS_CHANGED]: OrderStatusChangedPayload;
  [EventTypes.QUOTE_CONVERTED]: QuoteConvertedPayload;
+ [EventTypes.SUPPLIER_CREATED]: SupplierCreatedPayload;
+ [EventTypes.SUPPLIER_UPDATED]: SupplierUpdatedPayload;
+ [EventTypes.SUPPLIER_DEACTIVATED]: SupplierDeactivatedPayload;
 }

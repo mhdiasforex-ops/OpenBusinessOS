@@ -36,8 +36,8 @@ export class WhatsAppService {
 
   // ── Provider Resolution ───────────────────────────────────────────────
 
-  private getProvider(providerName: WhatsAppProviderName): WhatsAppProvider {
-    const ProviderClass = PROVIDER_MAP[providerName];
+  private getProvider(providerName: string): WhatsAppProvider {
+    const ProviderClass = PROVIDER_MAP[providerName as WhatsAppProviderName];
     if (!ProviderClass) throw new NotFoundException(`Provider "${providerName}" não implementado`);
     return new ProviderClass();
   }

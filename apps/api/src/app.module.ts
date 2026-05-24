@@ -30,6 +30,13 @@ import { SalesModule } from './sales/sales.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { ReportsModule } from './reports/reports.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { PaymentModule } from './payment/payment.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
+import { NotificationModule } from './notification/notification.module';
+import { UsersModule } from './users/users.module';
+import { NfseModule } from './nfse/nfse.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { MultiCurrencyModule } from './multi-currency/multi-currency.module';
 import { JwtGuard } from './auth/jwt.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 
@@ -82,6 +89,13 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     SchedulerModule,
     ReportsModule,
     ComplianceModule,
+ PaymentModule,
+ WhatsAppModule,
+    NotificationModule,
+    UsersModule,
+    NfseModule,
+    EmailTemplatesModule,
+    MultiCurrencyModule,
   ],
   providers: [
     // Global guards — executed in order for every request

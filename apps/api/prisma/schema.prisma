@@ -335,8 +335,13 @@ model Organization {
   whatsappConfigs WhatsAppConfig[]
   whatsappTemplates WhatsAppTemplate[]
   whatsappMessages WhatsAppMessage[]
+  whatsappConversations WhatsAppConversation[]
+  nfses Nfse[]
+  emailTemplates EmailTemplate[]
+  emailLogs EmailLog[]
+  notifications Notification[]
 
-  @@index([slug])
+ @@index([slug])
   @@index([isActive])
   @@map("organizations")
 }
@@ -348,20 +353,22 @@ model User {
   organizationId String
   email          String
   name           String
-  passwordHash   String    @map("password_hash")
-  mfaEnabled     Boolean   @default(false) @map("mfa_enabled")
-  mfaSecret      String?   @map("mfa_secret")
-  isActive       Boolean   @default(true) @map("is_active")
+  phone String? @map("phone")
+  passwordHash String @map("password_hash")
+  mfaEnabled Boolean @default(false) @map("mfa_enabled")
+  mfaSecret String? @map("mfa_secret")
+  isActive Boolean @default(true) @map("is_active")
   lastLoginAt    DateTime? @map("last_login_at")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  roles UserRole[]
-  employees Employee[]
-  approvedLeaves LeaveRequest[]
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ roles UserRole[]
+ employees Employee[]
+ approvedLeaves LeaveRequest[]
+ notifications Notification[]
 
-  @@unique([organizationId, email])
+ @@unique([organizationId, email])
   @@index([organizationId])
   @@index([email])
   @@map("users")
@@ -463,8 +470,9 @@ model Customer {
  orders Order[]
  appointments Appointment[]
  contracts Contract[]
- payments Payment[]
- whatsappMessages WhatsAppMessage[]
+  payments Payment[]
+  whatsappMessages WhatsAppMessage[]
+  nfses Nfse[]
 
  @@unique([organizationId, email])
   @@index([organizationId])
@@ -1218,13 +1226,159 @@ model WhatsAppMessage {
  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
  config WhatsAppConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
  template WhatsAppTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
- customer Customer? @relation(fields: [customerId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  conversation WhatsAppConversation? @relation(fields: [conversationId], references: [id])
 
- @@index([organizationId])
- @@index([organizationId, status])
- @@index([configId])
+  conversationId String?
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([configId])
  @@index([customerId])
  @@index([phone])
  @@index([externalId])
  @@map("whatsapp_messages")
+}
+
+// --- Notification ---
+
+enum NotificationType {
+ INFO
+ WARNING
+ SUCCESS
+ ERROR
+ SYSTEM
+}
+
+model Notification {
+ id             String           @id @default(cuid())
+ organizationId String
+ userId         String
+ type           NotificationType @default(INFO)
+ title          String
+ message        String
+ read           Boolean          @default(false)
+ actionUrl      String?
+ createdAt      DateTime         @default(now())
+
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+ user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@index([organizationId])
+ @@index([organizationId, userId])
+ @@index([organizationId, read])
+  @@index([organizationId, type])
+  @@map("notifications")
+}
+
+// ── NFS-e (Nota Fiscal de Serviço Eletrônica) ────────────────
+
+enum NfseStatus {
+  ISSUED
+  CANCELLED
+  PENDING
+}
+
+model Nfse {
+  id                  String      @id @default(cuid())
+  organizationId      String
+  customerId          String
+  numero              String
+  codigoVerificacao   String
+  serviceDescription  String
+  serviceCode         String
+  amount              Float
+  issRate             Float       @default(5)
+  issAmount           Float       @default(0)
+  pisAmount           Float       @default(0)
+  cofinsAmount        Float       @default(0)
+  csllAmount          Float       @default(0)
+  irAmount            Float       @default(0)
+  totalTaxes          Float       @default(0)
+  netAmount           Float       @default(0)
+  cityCode            String
+  status              NfseStatus  @default(ISSUED)
+  issueDate           DateTime
+  cancellationReason  String?
+  cancelledAt         DateTime?
+  deductions          String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@map("nfses")
+}
+
+// ── Email Templates ──────────────────────────────────────────
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model EmailTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  subject        String
+  body           String
+  category       String?
+  variables      String?  // JSON array of variable names
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  logs         EmailLog[]
+
+  @@index([organizationId])
+  @@index([organizationId, category])
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id             String     @id @default(cuid())
+  organizationId String
+  templateId     String?
+  to             String
+  subject        String
+  body           String
+  status         EmailStatus @default(PENDING)
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime   @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([templateId])
+  @@index([organizationId, status])
+  @@map("email_logs")
+}
+
+// ── WhatsApp Conversations ───────────────────────────────────
+
+model WhatsAppConversation {
+  id             String   @id @default(cuid())
+  organizationId String
+  contactName    String
+  contactPhone   String
+  lastMessage    String?
+  unreadCount    Int      @default(0)
+  isResolved     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     WhatsAppMessage[]
+
+  @@index([organizationId])
+  @@index([organizationId, isResolved])
+  @@map("whatsapp_conversations")
 }

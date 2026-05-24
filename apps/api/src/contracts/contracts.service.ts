@@ -107,4 +107,54 @@ export class ContractsService {
     await this.prisma.contract.delete({ where: { id } });
     return { message: 'Contrato removido' };
   }
+
+  // ──────────────────────────────────────────────
+  // STATS — resumo estatístico dos contratos
+  // ──────────────────────────────────────────────
+
+  async getStats(orgId: string) {
+    const [total, byStatus, byType, totalValue] = await Promise.all([
+      // Total de contratos
+      this.prisma.contract.count({ where: { organizationId: orgId } }),
+
+      // Por status
+      this.prisma.contract.groupBy({
+        by: ['status'],
+        where: { organizationId: orgId },
+        _count: { status: true },
+      }),
+
+      // Por tipo
+      this.prisma.contract.groupBy({
+        by: ['type'],
+        where: { organizationId: orgId },
+        _count: { type: true },
+      }),
+
+      // Soma dos valores
+      this.prisma.contract.aggregate({
+        where: { organizationId: orgId },
+        _sum: { value: true },
+      }),
+    ]);
+
+    // Contratos expirando nos próximos 30 dias
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const expiringSoon = await this.prisma.contract.count({
+      where: {
+        organizationId: orgId,
+        status: ContractStatus.ACTIVE,
+        endDate: { lte: thirtyDaysFromNow, gte: new Date() },
+      },
+    });
+
+    return {
+      total,
+      totalValue: totalValue._sum.value ?? 0,
+      expiringSoon,
+      byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count.status])),
+      byType: Object.fromEntries(byType.map((t) => [t.type, t._count.type])),
+    };
+  }
 }

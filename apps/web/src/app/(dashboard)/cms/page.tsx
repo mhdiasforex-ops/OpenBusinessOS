@@ -1,6 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,6 +49,9 @@ export default function CmsPage() {
   const [newPageTitle, setNewPageTitle] = useState('');
   const [newPageSlug, setNewPageSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [editingPage, setEditingPage] = useState<any>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSlug, setEditSlug] = useState('');
 
   // Pages query
   const { data: pagesData, isLoading: pagesLoading } = useQuery({
@@ -191,6 +193,7 @@ export default function CmsPage() {
             </Card>
           ) : (
             <Card>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -237,7 +240,7 @@ export default function CmsPage() {
                               <Eye className="h-4 w-4" />
                             )}
                           </Button>
-                          <Button size="sm" variant="outline" className="gap-1">
+                          <Button size="sm" variant="outline" className="gap-1" onClick={() => { setEditingPage(page); setEditTitle(page.title); setEditSlug(page.slug); }}>
                             <Pencil className="h-3 w-3" /> Editar
                           </Button>
                           <Button
@@ -262,6 +265,7 @@ export default function CmsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
@@ -284,6 +288,7 @@ export default function CmsPage() {
             </Card>
           ) : (
             <Card>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -353,10 +358,46 @@ export default function CmsPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Editar Página Dialog */}
+      <Dialog open={!!editingPage} onOpenChange={(open) => { if (!open) setEditingPage(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Página</DialogTitle>
+            <DialogDescription>Altere o título ou slug da página.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="edit-title">Título</Label>
+              <Input id="edit-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="edit-slug">Slug</Label>
+              <Input id="edit-slug" value={editSlug} onChange={(e) => setEditSlug(slugify(e.target.value))} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setEditingPage(null)}>Cancelar</Button>
+              <Button
+                onClick={() => {
+                  if (editingPage) {
+                    updatePageMutation.mutate({ id: editingPage.id, data: { title: editTitle, slug: editSlug } });
+                    setEditingPage(null);
+                  }
+                }}
+                disabled={!editTitle.trim() || !editSlug.trim() || updatePageMutation.isPending}
+              >
+                {updatePageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Pencil className="h-4 w-4 mr-2" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Nova Página Dialog */}
       <Dialog open={showNewPageDialog} onOpenChange={setShowNewPageDialog}>

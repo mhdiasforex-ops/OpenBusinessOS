@@ -31,7 +31,7 @@ const segmentLabel: Record<string, string> = {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const customerId = params.id as string;
+  const customerId = (params?.id ?? '') as string;
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', customerId],
@@ -206,6 +206,7 @@ export default function CustomerDetailPage() {
                   Nenhuma transação encontrada para este cliente.
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -242,6 +243,7 @@ export default function CustomerDetailPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

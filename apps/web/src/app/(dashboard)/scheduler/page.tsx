@@ -1,21 +1,23 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useState, useMemo } from 'react';
-import { Calendar, Search, Plus, Clock, CheckCircle, XCircle, Bell, Users } from 'lucide-react';
+import { Calendar, Search, Plus, Clock, CheckCircle, XCircle, Bell, Users, Loader2, X, Trash2 } from 'lucide-react';
 
 export default function SchedulerPage() {
   const [tab, setTab] = useState<'appointments' | 'reminders' | 'stats'>('appointments');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', customerId: '', startsAt: '', endsAt: '', location: '' });
   const queryClient = useQueryClient();
 
   const { data: appointments, isLoading: loadingAppts } = useQuery({
@@ -41,6 +43,22 @@ export default function SchedulerPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: string) => api.post(`/scheduler/appointments/${id}/cancel`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scheduler-appointments'] }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.post('/scheduler/appointments', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduler-appointments'] });
+      setDialogOpen(false);
+      setForm({ title: '', customerId: '', startsAt: '', endsAt: '', location: '' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/scheduler/appointments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduler-appointments'] });
+    },
   });
 
   const allAppointments = useMemo(() => {
@@ -91,11 +109,28 @@ export default function SchedulerPage() {
     { key: 'stats', label: 'Estatisticas', icon: Users },
   ] as const;
 
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({
+      title: form.title,
+      customerId: form.customerId,
+      startsAt: form.startsAt,
+      endsAt: form.endsAt,
+      location: form.location,
+    });
+  };
+
+  const handleDelete = (id: string, title: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o agendamento "${title}"?`)) {
+      deleteMutation.mutate(id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Agendamentos</h1>
-        <Button><Plus className="h-4 w-4 mr-2" />Novo Agendamento</Button>
+        <Button onClick={() => { setForm({ title: '', customerId: '', startsAt: '', endsAt: '', location: '' }); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Novo Agendamento</Button>
       </div>
 
       {/* KPIs */}
@@ -164,6 +199,7 @@ export default function SchedulerPage() {
           <CardHeader><CardTitle>Agendamentos</CardTitle></CardHeader>
           <CardContent>
             {loadingAppts ? <p className="text-muted-foreground">Carregando...</p> : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -197,6 +233,9 @@ export default function SchedulerPage() {
                               <XCircle className="h-3 w-3 mr-1" />Cancelar
                             </Button>
                           )}
+                          <Button variant="ghost" size="sm" title="Excluir" onClick={() => handleDelete(a.id, a.title)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -206,6 +245,7 @@ export default function SchedulerPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -217,6 +257,7 @@ export default function SchedulerPage() {
           <CardHeader><CardTitle>Lembretes Pendentes</CardTitle></CardHeader>
           <CardContent>
             {loadingReminders ? <p className="text-muted-foreground">Carregando...</p> : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -242,6 +283,7 @@ export default function SchedulerPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -279,6 +321,46 @@ export default function SchedulerPage() {
           </Card>
         </div>
       )}
+
+      {/* Create Appointment Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Agendamento</DialogTitle>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setDialogOpen(false)}><X className="h-4 w-4" /></Button>
+          </DialogHeader>
+          <form onSubmit={handleCreateSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="a-title">Titulo</Label>
+              <Input id="a-title" placeholder="Titulo do agendamento" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="a-customer">ID do Cliente</Label>
+              <Input id="a-customer" placeholder="customerId" value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="a-startsAt">Inicio</Label>
+                <Input id="a-startsAt" type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="a-endsAt">Fim</Label>
+                <Input id="a-endsAt" type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} required />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="a-location">Local</Label>
+              <Input id="a-location" placeholder="Local do agendamento" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</>) : 'Salvar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

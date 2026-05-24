@@ -32,10 +32,16 @@ describe('FinancialService', () => {
       transactionItem: { create: vi.fn() },
     };
     eventBus = { emit: vi.fn().mockResolvedValue(undefined) };
-    cashFlowService = { getCashFlow: vi.fn().mockResolvedValue({ entries: [], summary: {} }) };
+    cashFlowService = {
+      getCashFlow: vi.fn().mockResolvedValue({ entries: [], summary: {} }),
+      getCashFlowByMonths: vi.fn().mockResolvedValue([{ month: '2026-01', entries: [], total: 0 }]),
+    };
     conciliationService = { conciliate: vi.fn().mockResolvedValue({ matched: 5, unmatched: 1 }) };
-    overdueDetector = { detectOverdue: vi.fn().mockResolvedValue([]) };
-  dreService = { generateDRE: vi.fn().mockResolvedValue({ revenue: 10000, expenses: 6000, netProfit: 4000 }) };
+    overdueDetector = { detect: vi.fn().mockResolvedValue([]) };
+  dreService = {
+    generateDRE: vi.fn().mockResolvedValue({ revenue: 10000, expenses: 6000, netProfit: 4000 }),
+    getDREComparison: vi.fn().mockResolvedValue([{ month: '2026-01', revenue: 10000, expenses: 6000, netProfit: 4000 }]),
+  };
   cmvService = { calculateCMV: vi.fn().mockResolvedValue({ cmv: 3000, margin: 0.7 }) };
 
     service = new FinancialService(prisma, eventBus, cashFlowService, conciliationService, overdueDetector, dreService, cmvService);
@@ -143,6 +149,96 @@ describe('FinancialService', () => {
       const result = await service.conciliate(orgId, dto, userId);
 
       expect(conciliationService.conciliate).toHaveBeenCalledWith(orgId, dto, userId);
+    });
+  });
+
+  describe('getTransaction', () => {
+    it('should return transaction with customer and items', async () => {
+      prisma.transaction.findFirst.mockResolvedValue({ id: 'tx-1', amount: 1500, customer: { id: 'cust-1', name: 'Maria' }, items: [] });
+
+      const result = await service.getTransaction(orgId, 'tx-1');
+      expect(result.id).toBe('tx-1');
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith({
+        where: { id: 'tx-1', organizationId: orgId },
+        include: { customer: true, items: { include: { product: true } } },
+      });
+    });
+
+    it('should throw NotFoundException when not found', async () => {
+      prisma.transaction.findFirst.mockResolvedValue(null);
+      await expect(service.getTransaction(orgId, 'tx-999')).rejects.toThrow('Transação não encontrada');
+    });
+  });
+
+  describe('getCashFlow', () => {
+    it('should delegate to CashFlowService', async () => {
+      const query: CashFlowQueryDto = { startDate: '2026-01-01', endDate: '2026-01-31' };
+
+      const result = await service.getCashFlow(orgId, query);
+
+      expect(cashFlowService.getCashFlow).toHaveBeenCalledWith(orgId, query);
+    });
+  });
+
+  describe('getCashFlowByMonths', () => {
+    it('should delegate to CashFlowService with default months', async () => {
+      const result = await service.getCashFlowByMonths(orgId);
+      expect(cashFlowService.getCashFlowByMonths).toHaveBeenCalledWith(orgId, 3);
+    });
+
+    it('should delegate with custom months param', async () => {
+      const result = await service.getCashFlowByMonths(orgId, 6);
+      expect(cashFlowService.getCashFlowByMonths).toHaveBeenCalledWith(orgId, 6);
+    });
+  });
+
+  describe('getDRE', () => {
+    it('should delegate to DreService with month and year', async () => {
+      const result = await service.getDRE(orgId, 1, 2026);
+
+      expect(dreService.generateDRE).toHaveBeenCalledWith(orgId, 1, 2026);
+    });
+  });
+
+  describe('getDREComparison', () => {
+    it('should delegate to DreService with default months', async () => {
+      const result = await service.getDREComparison(orgId);
+      expect(dreService.getDREComparison).toHaveBeenCalledWith(orgId, 3);
+    });
+  });
+
+  describe('getCMV', () => {
+    it('should delegate to CmvService with month and year', async () => {
+      const result = await service.getCMV(orgId, 1, 2026);
+
+      expect(cmvService.calculateCMV).toHaveBeenCalledWith(orgId, 1, 2026);
+    });
+  });
+
+  describe('checkOverdue', () => {
+    it('should delegate to OverdueDetector', async () => {
+      const result = await service.checkOverdue(orgId);
+      expect(overdueDetector.detect).toHaveBeenCalledWith(orgId);
+    });
+  });
+
+  describe('markAsPaid', () => {
+    it('should mark transaction as paid and emit event', async () => {
+      prisma.transaction.findFirst.mockResolvedValue({ id: 'tx-1', amount: 1500, auditTrail: {} });
+      prisma.transaction.update.mockResolvedValue({ id: 'tx-1', amount: 1500, status: 'PAID', paidAt: new Date(), auditTrail: {} });
+
+      const result = await service.markAsPaid(orgId, 'tx-1', 'PIX', userId);
+
+      expect(prisma.transaction.update).toHaveBeenCalled();
+      expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'TRANSACTION_PAID',
+        organizationId: orgId,
+      }));
+    });
+
+    it('should throw NotFoundException when transaction not found', async () => {
+      prisma.transaction.findFirst.mockResolvedValue(null);
+      await expect(service.markAsPaid(orgId, 'tx-999', 'PIX', userId)).rejects.toThrow('Transação não encontrada');
     });
   });
 });

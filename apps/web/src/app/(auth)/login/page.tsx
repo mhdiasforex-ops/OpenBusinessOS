@@ -50,8 +50,8 @@ export default function LoginPage() {
   }
 
   function fillDemo() {
-    setEmail('demo@openbusinessos.com');
-    setPassword('demo123');
+    setEmail('demo@businessos.com');
+    setPassword('demo1234');
   }
 
   return (
@@ -117,7 +117,7 @@ export default function LoginPage() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Conta de demonstração</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  <span className="font-mono">demo@openbusinessos.com</span> / <span className="font-mono">demo123</span>
+                    <span className="font-mono">demo@businessos.com</span> / <span className="font-mono">demo1234</span>
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={fillDemo}>
