@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import { MessageCircle, Wifi, WifiOff, FileCode, ArrowUpRight, ArrowDownLeft, Loader2, Plus } from 'lucide-react';
+import { MessageCircle, Wifi, WifiOff, FileCode, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -175,6 +175,7 @@ function NewTemplateForm({ onClose }: { onClose: () => void }) {
 // ── Page component ───────────────────────────────────────────────
 
 export default function WhatsAppPage() {
+ const queryClient = useQueryClient();
  const [configDialogOpen, setConfigDialogOpen] = useState(false);
  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
@@ -191,11 +192,21 @@ export default function WhatsAppPage() {
  });
 
  const { data: messagesData, isLoading: messagesLoading } = useQuery<{ data: WhatsAppMessage[] }>({
-  queryKey: ['whatsapp-messages'],
-  queryFn: () => api.get('/whatsapp/messages'),
- });
+   queryKey: ['whatsapp-messages'],
+   queryFn: () => api.get('/whatsapp/messages'),
+  });
 
- const configs = configsData?.data || [];
+  const deleteConfigMutation = useMutation({
+   mutationFn: (id: string) => api.delete(`/whatsapp/configs/${id}`),
+   onSuccess: () => queryClient.invalidateQueries({ queryKey: ['whatsapp-configs'] }),
+  });
+
+  const deleteTemplateMutation = useMutation({
+   mutationFn: (id: string) => api.delete(`/whatsapp/templates/${id}`),
+   onSuccess: () => queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] }),
+  });
+
+  const configs = configsData?.data || [];
  const templates = templatesData?.data || [];
  const messages = messagesData?.data || [];
 
@@ -241,28 +252,34 @@ export default function WhatsAppPage() {
        ) : (
         <div className="overflow-x-auto">
         <Table>
-         <TableHeader>
-          <TableRow>
-           <TableHead>Nome</TableHead>
-           <TableHead>Telefone</TableHead>
-           <TableHead>Status</TableHead>
-           <TableHead>Provider</TableHead>
-          </TableRow>
-         </TableHeader>
-         <TableBody>
-          {configs.map((c) => (
-           <TableRow key={c.id}>
-            <TableCell className="font-medium">{c.name}</TableCell>
-            <TableCell>{c.phone}</TableCell>
-            <TableCell>
-             <Badge variant={conexaoStatusVariant[c.isActive ? 'ACTIVE' : 'INACTIVE']}>
-              {c.isActive ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
-              {c.isActive ? 'Conectado' : 'Desconectado'}
-             </Badge>
-            </TableCell>
-            <TableCell>{c.provider}</TableCell>
+          <TableHeader>
+           <TableRow>
+            <TableHead>Nome</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Provider</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
            </TableRow>
-          ))}
+          </TableHeader>
+          <TableBody>
+           {configs.map((c) => (
+            <TableRow key={c.id}>
+             <TableCell className="font-medium">{c.name}</TableCell>
+             <TableCell>{c.phone}</TableCell>
+             <TableCell>
+              <Badge variant={conexaoStatusVariant[c.isActive ? 'ACTIVE' : 'INACTIVE']}>
+               {c.isActive ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
+               {c.isActive ? 'Conectado' : 'Desconectado'}
+              </Badge>
+             </TableCell>
+             <TableCell>{c.provider}</TableCell>
+             <TableCell className="text-right">
+              <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm(`Desconectar ${c.name}?`)) deleteConfigMutation.mutate(c.id); }}>
+               <Trash2 className="h-3 w-3" />
+              </Button>
+             </TableCell>
+            </TableRow>
+           ))}
          </TableBody>
         </Table>
         </div>
@@ -289,25 +306,31 @@ export default function WhatsAppPage() {
        ) : (
         <div className="overflow-x-auto">
         <Table>
-         <TableHeader>
-          <TableRow>
-           <TableHead>Nome</TableHead>
-           <TableHead>Categoria</TableHead>
-           <TableHead>Status</TableHead>
-          </TableRow>
-         </TableHeader>
-         <TableBody>
-          {templates.map((t) => (
-           <TableRow key={t.id}>
-            <TableCell className="font-medium">{t.name}</TableCell>
-            <TableCell>{t.category}</TableCell>
-            <TableCell>
-             <Badge variant={templateStatusVariant[t.status] || 'secondary'}>
-              {templateStatusLabel[t.status] || t.status}
-             </Badge>
-            </TableCell>
+          <TableHeader>
+           <TableRow>
+            <TableHead>Nome</TableHead>
+            <TableHead>Categoria</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
            </TableRow>
-          ))}
+          </TableHeader>
+          <TableBody>
+           {templates.map((t) => (
+            <TableRow key={t.id}>
+             <TableCell className="font-medium">{t.name}</TableCell>
+             <TableCell>{t.category}</TableCell>
+             <TableCell>
+              <Badge variant={templateStatusVariant[t.status] || 'secondary'}>
+               {templateStatusLabel[t.status] || t.status}
+              </Badge>
+             </TableCell>
+             <TableCell className="text-right">
+              <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm(`Excluir template ${t.name}?`)) deleteTemplateMutation.mutate(t.id); }}>
+               <Trash2 className="h-3 w-3" />
+              </Button>
+             </TableCell>
+            </TableRow>
+           ))}
          </TableBody>
         </Table>
         </div>

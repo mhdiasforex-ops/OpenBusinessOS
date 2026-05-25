@@ -18,6 +18,7 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Trash2 } from 'lucide-react';
 
 // --- Tipos ---
 
@@ -314,6 +315,17 @@ function MembrosTab() {
     },
   });
 
+  const deleteMember = useMutation({
+    mutationFn: (id: string) => api.delete(`/organization/members/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization', 'members'] });
+      toast({ title: 'Membro removido', description: 'O membro foi removido da organização.' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao remover', description: 'Não foi possível remover o membro.', variant: 'destructive' });
+    },
+  });
+
   function handleAddMember(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || !newEmail.trim()) return;
@@ -350,6 +362,7 @@ function MembrosTab() {
                 <TableHead>Função</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Membro desde</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -382,6 +395,20 @@ function MembrosTab() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDatePt(member.joinedAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-600"
+                      onClick={() => {
+                        if (confirm(`Remover ${member.name} da organização?`))
+                          deleteMember.mutate(member.id);
+                      }}
+                      disabled={deleteMember.isPending}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

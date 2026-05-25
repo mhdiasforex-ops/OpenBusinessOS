@@ -20,6 +20,8 @@ import {
   Eye,
   Star,
   RefreshCw,
+  Plus,
+  Pencil,
 } from 'lucide-react';
 
 // ── Niche options (pt-BR) ──────────────────────────────────────────
@@ -75,6 +77,10 @@ export default function TemplatesPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [viewingTemplate, setViewingTemplate] = useState<any>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [form, setForm] = useState({ name: '', description: '', niche: 'RETAIL', type: 'ONBOARDING', subniche: '', isActive: true, content: '' });
 
   // ── Queries ──────────────────────────────────────────────────────
 
@@ -98,6 +104,24 @@ export default function TemplatesPage() {
     onSettled: () => setDeleting(null),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['templates'] }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.post('/templates', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      setCreateDialogOpen(false);
+      setForm({ name: '', description: '', niche: 'RETAIL', type: 'ONBOARDING', subniche: '', isActive: true, content: '' });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.patch(`/templates/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      setEditDialogOpen(false);
+      setEditingTemplate(null);
+    },
   });
 
   // ── Derived data ─────────────────────────────────────────────────
@@ -154,6 +178,9 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Templates</h1>
+        <Button onClick={() => { setForm({ name: '', description: '', niche: 'RETAIL', type: 'ONBOARDING', subniche: '', isActive: true, content: '' }); setCreateDialogOpen(true); }}>
+          <Plus className="h-4 w-4 mr-2" />Novo Template
+        </Button>
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────────────── */}
@@ -299,6 +326,15 @@ export default function TemplatesPage() {
 
                 {/* Actions */}
                 <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => { setEditingTemplate(t); setForm({ name: t.name, description: t.description || '', niche: t.niche, type: t.type, subniche: t.subniche || '', isActive: t.isActive, content: JSON.stringify(t.content, null, 2) }); setEditDialogOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

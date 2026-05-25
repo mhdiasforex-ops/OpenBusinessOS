@@ -27,7 +27,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@openbusinessos/utils';
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Megaphone, Send, TrendingUp, DollarSign, Plus, Users, RefreshCw, Loader2 } from 'lucide-react';
+import { Megaphone, Send, TrendingUp, DollarSign, Plus, Users, RefreshCw, Loader2, Trash2, Pencil } from 'lucide-react';
 
 // ── Constants ────────────────────────────────────────────────────
 
@@ -142,6 +142,8 @@ export default function CampanhasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [form, setForm] = useState<CampaignFormState>({ ...emptyForm });
+  const [editingCampaign, setEditingCampaign] = useState<CampaignRecord | null>(null);
+  const [editForm, setEditForm] = useState<CampaignFormState>({ ...emptyForm });
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -224,6 +226,34 @@ export default function CampanhasPage() {
   const handleOpenDialog = () => {
     setForm({ ...emptyForm });
     setDialogOpen(true);
+  };
+
+  const handleEdit = (campaign: CampaignRecord) => {
+    setEditingCampaign(campaign);
+    setEditForm({
+      name: campaign.name,
+      channel: campaign.channel,
+      segment: campaign.segment,
+      recipientCount: campaign.recipientCount,
+      message: campaign.message,
+    });
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCampaign || !editForm.name.trim() || !editForm.message.trim()) return;
+    const updated = campaigns.map((c) =>
+      c.id === editingCampaign.id ? { ...c, ...editForm } : c
+    );
+    persistCampaigns(updated);
+    setEditingCampaign(null);
+    setEditForm({ ...emptyForm });
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm('Excluir esta campanha?')) return;
+    const updated = campaigns.filter((c) => c.id !== id);
+    persistCampaigns(updated);
   };
 
   // ── Render ───────────────────────────────────────────────────
@@ -338,6 +368,7 @@ export default function CampanhasPage() {
                   <TableHead className="text-right">Destinatários</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -371,6 +402,16 @@ export default function CampanhasPage() {
                         minute: '2-digit',
                       })}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(c)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDelete(c.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -379,6 +420,46 @@ export default function CampanhasPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Edit Campaign Dialog ───────────────────────────────── */}
+      <Dialog open={!!editingCampaign} onOpenChange={(open) => { if (!open) { setEditingCampaign(null); setEditForm({ ...emptyForm }); }}}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Campanha</DialogTitle>
+            <DialogDescription>Altere as informações da campanha</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome da Campanha</Label>
+              <Input id="edit-name" placeholder="Ex: Black Friday 2026" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-channel">Canal</Label>
+                <Select id="edit-channel" options={CHANNEL_OPTIONS} value={editForm.channel} onChange={(e) => setEditForm({ ...editForm, channel: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-segment">Segmento</Label>
+                <Select id="edit-segment" options={SEGMENT_OPTIONS} value={editForm.segment} onChange={(e) => setEditForm({ ...editForm, segment: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-recipients">Qtd. Destinatários (estimativa)</Label>
+              <Input id="edit-recipients" type="number" min="0" placeholder="0" value={editForm.recipientCount || ''} onChange={(e) => setEditForm({ ...editForm, recipientCount: Number(e.target.value) || 0 })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-message">Mensagem</Label>
+              <Textarea id="edit-message" placeholder="Conteúdo da mensagem..." value={editForm.message} onChange={(e) => setEditForm({ ...editForm, message: e.target.value })} className="min-h-[120px]" required />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => { setEditingCampaign(null); setEditForm({ ...emptyForm }); }}>Cancelar</Button>
+              <Button type="submit" disabled={!editForm.name.trim() || !editForm.message.trim()}>
+                <Pencil className="h-4 w-4 mr-2" /> Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ── New Campaign Dialog ────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useState, useMemo } from 'react';
-import { Package, Search, Plus, AlertTriangle, ArrowUpDown, ShoppingCart, Loader2, X } from 'lucide-react';
+import { Package, Search, Plus, AlertTriangle, ArrowUpDown, ShoppingCart, Loader2, X, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -70,6 +70,16 @@ export default function InventoryPage() {
       setPoDialogOpen(false);
       setPoForm(INITIAL_PO_FORM);
     },
+  });
+
+  const deleteMovementMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/movements/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }),
+  });
+
+  const deletePOMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/purchase-orders/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory-purchase-orders'] }),
   });
 
   const handleMovementSubmit = (e: React.FormEvent) => {
@@ -303,6 +313,7 @@ export default function InventoryPage() {
                     <TableHead>Motivo</TableHead>
                     <TableHead>Referencia</TableHead>
                     <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -314,10 +325,15 @@ export default function InventoryPage() {
                       <TableCell>{m.reason || '-'}</TableCell>
                       <TableCell>{m.reference || '-'}</TableCell>
                       <TableCell>{new Date(m.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm('Excluir movimentação?')) deleteMovementMutation.mutate(m.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filteredMovements.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhuma movimentacao encontrada</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma movimentacao encontrada</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -378,6 +394,7 @@ export default function InventoryPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Previsao</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -388,10 +405,15 @@ export default function InventoryPage() {
                       <TableCell>{statusBadge(po.status)}</TableCell>
                       <TableCell>R$ {Number(po.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>{po.expectedAt ? new Date(po.expectedAt).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm('Excluir pedido de compra?')) deletePOMutation.mutate(po.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {allPO.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhum pedido de compra</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhum pedido de compra</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

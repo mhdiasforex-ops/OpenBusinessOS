@@ -99,6 +99,23 @@ export default function CmsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cms-media'] }),
   });
 
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await api.upload('/cms/media/upload', formData);
+      queryClient.invalidateQueries({ queryKey: ['cms-media'] });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   const pages: any[] = pagesData?.data || pagesData || [];
   const media: any[] = mediaData?.data || mediaData || [];
 
@@ -281,13 +298,34 @@ export default function CmsPage() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Image className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">Nenhuma mídia enviada</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-4">
                   Faça upload de imagens e arquivos para usar nas suas páginas
                 </p>
+                <Label htmlFor="media-upload-empty" className="cursor-pointer">
+                  <Button variant="outline" asChild>
+                    <span>
+                      {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Upload Mídia
+                    </span>
+                  </Button>
+                  <Input id="media-upload-empty" type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+                </Label>
               </CardContent>
             </Card>
           ) : (
             <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Mídia</CardTitle>
+                <Label htmlFor="media-upload" className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild>
+                    <span>
+                      {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Upload
+                    </span>
+                  </Button>
+                  <Input id="media-upload" type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+                </Label>
+              </CardHeader>
               <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

@@ -93,6 +93,11 @@ export default function FiscalPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fiscal-nfse'] }); queryClient.invalidateQueries({ queryKey: ['fiscal-stats'] }); },
   });
 
+  const cancelNfceMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/fiscal/nfce/${id}/cancelar`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fiscal-nfce'] }); queryClient.invalidateQueries({ queryKey: ['fiscal-stats'] }); },
+  });
+
   const generateSpedMutation = useMutation({
     mutationFn: (data: any) => api.post('/fiscal/sped/generate', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fiscal-sped'] }),
@@ -210,7 +215,7 @@ export default function FiscalPage() {
       <Card>
         <CardContent className="pt-6">
           {activeTab === 'nfe' && renderDocTable(nfeList || [], !!nfeLoading, cancelNfeMutation)}
-          {activeTab === 'nfce' && renderDocTable(nfceList || [], !!nfceLoading)}
+          {activeTab === 'nfce' && renderDocTable(nfceList || [], !!nfceLoading, cancelNfceMutation)}
           {activeTab === 'nfse' && renderDocTable(nfseList || [], !!nfseLoading, cancelNfseMutation)}
           {activeTab === 'sped' && (
             <div className="space-y-4">

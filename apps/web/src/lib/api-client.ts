@@ -56,6 +56,12 @@ class ApiClient {
   delete<T = any>(url: string): Promise<T> {
     return this.client.delete<T>(url).then(r => r.data);
   }
+
+  upload<T = any>(url: string, formData: FormData): Promise<T> {
+    return this.client.post<T>(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  }
 }
 
 export const api = new ApiClient();

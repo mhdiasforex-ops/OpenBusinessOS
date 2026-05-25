@@ -25,6 +25,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@openbusinessos/utils';
 import { useState, useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 
 // ── Status badge helpers ──────────────────────────────────────────
 
@@ -158,6 +159,14 @@ export default function FinancialPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: string) =>
       api.post(`/financial/transactions/${id}/cancel`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['cash-flow'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/financial/transactions/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['cash-flow'] });
@@ -429,6 +438,17 @@ export default function FinancialPage() {
                             Cancelar
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600"
+                          onClick={() => {
+                            if (confirm('Excluir permanentemente esta transação?'))
+                              deleteMutation.mutate(tx.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

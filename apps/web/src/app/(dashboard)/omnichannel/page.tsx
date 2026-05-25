@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import { MessageSquare, Mail, Smartphone, Send, Loader2, RefreshCw, CheckCircle, Clock, XCircle, Phone } from 'lucide-react';
+import { MessageSquare, Mail, Smartphone, Send, Loader2, RefreshCw, CheckCircle, Clock, XCircle, Phone, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,6 +67,16 @@ export default function OmnichannelPage() {
   const sendMessageMutation = useMutation({
     mutationFn: (data: any) => api.post('/omnichannel/send', data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['omnichannel-conversations'] }); setSendForm({ channel: 'WHATSAPP', to: '', subject: '', content: '' }); },
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/omnichannel/conversations/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['omnichannel-conversations'] }),
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/omnichannel/templates/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['omnichannel-templates'] }),
   });
 
   const tabs = [
@@ -132,6 +142,9 @@ export default function OmnichannelPage() {
                       <div className="flex items-center gap-2">
                         {conv.unreadCount > 0 && <Badge>{conv.unreadCount}</Badge>}
                         <Badge variant={sc.badge}>{conv.status}</Badge>
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={(e) => { e.stopPropagation(); if (confirm('Excluir conversa?')) deleteConversationMutation.mutate(conv.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   );
@@ -178,7 +191,12 @@ export default function OmnichannelPage() {
                         <Icon className={`h-4 w-4 ${channelColors[tpl.channel] || ''}`} />
                         <div><p className="text-sm font-medium">{tpl.name}</p><p className="text-xs text-muted-foreground">{tpl.content.slice(0, 80)}...</p></div>
                       </div>
-                      <Badge variant="outline">{tpl.channel}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{tpl.channel}</Badge>
+                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm('Excluir template?')) deleteTemplateMutation.mutate(tpl.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}

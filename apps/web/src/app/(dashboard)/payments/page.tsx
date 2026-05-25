@@ -179,20 +179,28 @@ export default function PaymentsPage() {
  // ── Mutations ────────────────────────────────────────────────────
 
  const cancelMutation = useMutation({
-  mutationFn: (id: string) => api.post(`/payment/${id}/cancel`),
-  onSuccess: () => {
-   queryClient.invalidateQueries({ queryKey: ['payments'] });
-   queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
-  },
- });
+   mutationFn: (id: string) => api.post(`/payment/${id}/cancel`),
+   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
+   },
+  });
 
- const refundMutation = useMutation({
-  mutationFn: (id: string) => api.post(`/payment/${id}/refund`),
-  onSuccess: () => {
-   queryClient.invalidateQueries({ queryKey: ['payments'] });
-   queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
-  },
- });
+  const refundMutation = useMutation({
+   mutationFn: (id: string) => api.post(`/payment/${id}/refund`),
+   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
+   },
+  });
+
+  const deleteMutation = useMutation({
+   mutationFn: (id: string) => api.delete(`/payment/${id}`),
+   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
+   },
+  });
 
  // ── Derived data ────────────────────────────────────────────────
 
@@ -313,20 +321,23 @@ export default function PaymentsPage() {
           <TableCell>
             {p.dueDate ? new Date(p.dueDate).toLocaleDateString('pt-BR') : '—'}
           </TableCell>
-          <TableCell>
-            <div className="flex gap-1">
-              {(p.status === 'PENDING' || p.status === 'OVERDUE') && (
-                <Button size="sm" variant="destructive" onClick={() => cancelMutation.mutate(p.id)}>
-                  <Trash2 className="h-3 w-3 mr-1" /> Cancelar
-                </Button>
-              )}
-              {p.status === 'PAID' && (
-                <Button size="sm" variant="outline" onClick={() => refundMutation.mutate(p.id)}>
-                  <RotateCcw className="h-3 w-3 mr-1" /> Estornar
-                </Button>
-              )}
-            </div>
-          </TableCell>
+           <TableCell>
+             <div className="flex gap-1">
+               {(p.status === 'PENDING' || p.status === 'OVERDUE') && (
+                 <Button size="sm" variant="destructive" onClick={() => cancelMutation.mutate(p.id)}>
+                   <Trash2 className="h-3 w-3 mr-1" /> Cancelar
+                 </Button>
+               )}
+               {p.status === 'PAID' && (
+                 <Button size="sm" variant="outline" onClick={() => refundMutation.mutate(p.id)}>
+                   <RotateCcw className="h-3 w-3 mr-1" /> Estornar
+                 </Button>
+               )}
+               <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { if (confirm('Excluir permanentemente este pagamento?')) deleteMutation.mutate(p.id); }}>
+                 <Trash2 className="h-3 w-3" />
+               </Button>
+             </div>
+           </TableCell>
          </TableRow>
         ))}
         {filtered.length === 0 && (
